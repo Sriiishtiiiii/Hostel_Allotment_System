@@ -1,0 +1,38 @@
+Project Title:
+Hostel Allotment Management System
+
+-----------------------------
+Software Requirements
+-----------------------------
+
+Frontend:
+- React.js
+- Tailwind CSS
+- HTML5
+- JavaScript (ES6)
+
+Backend:
+- Node.js
+- Express.js
+
+Database:
+- MySQL Server
+- MySQL Workbench
+
+Tools:
+- Visual Studio Code
+- Git & GitHub
+- Postman (for API testing)
+
+-----------------------------
+Database & DBMS Concepts Used
+-----------------------------
+
+- MySQL relational database
+- ER Diagram design
+- Primary and Foreign Keys
+- One-to-Many (1:N) relationships
+- Normalization up to 3NF
+- Stored Procedures
+- Triggers
+- Views
