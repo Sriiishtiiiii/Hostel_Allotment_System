@@ -113,7 +113,7 @@ The Entity–Relationship diagram visually represents all entities, attributes, 
 ---
 
 ## 9. Authors
-Shubham Anand (23BCS109)
-Soham Juneja (23BCS110)
-Srishti Chamoli (23BCS111)
-Subhash Bharti (23BCS112)
+**Shubham Anand (23BCS109)** <br>
+**Soham Juneja (23BCS110)** <br>
+**Srishti Chamoli (23BCS111)** <br>
+**Subhash Bharti (23BCS112)**
