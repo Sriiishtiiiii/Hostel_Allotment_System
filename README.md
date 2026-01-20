@@ -111,3 +111,9 @@ The Entity–Relationship diagram visually represents all entities, attributes, 
 *(ER diagram designed using MySQL Workbench)*
 
 ---
+
+## 9. Authors
+Shubham Anand (23BCS109)
+Soham Juneja (23BCS110)
+Srishti Chamoli (23BCS111)
+Subhash Bharti (23BCS112)
