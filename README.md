@@ -1,5 +1,5 @@
 # Hostel Allotment System  
-### Database Management Systems (DBMS) Project
+### Database Management Systems Project
 
 ---
 
