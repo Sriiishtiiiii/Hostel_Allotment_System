@@ -77,24 +77,7 @@ Stores complaints related to hostel rooms or facilities raised by students.
 
 ---
 
-## 6. Database Design and Normalization
-
-The database schema is designed to satisfy the following normal forms:
-
-- **First Normal Form (1NF)**:  
-  All attributes contain atomic values and no repeating groups exist.
-
-- **Second Normal Form (2NF)**:  
-  All non-key attributes are fully functionally dependent on the primary key.
-
-- **Third Normal Form (3NF)**:  
-  No transitive dependencies exist among non-key attributes.
-
-Thus, the database is normalized up to **Third Normal Form (3NF)**.
-
----
-
-## 7. Constraints and Assumptions
+## 6. Constraints and Assumptions
 
 - A student can have **only one active allotment** at a time
 - Room occupancy cannot exceed room capacity
@@ -104,7 +87,7 @@ Thus, the database is normalized up to **Third Normal Form (3NF)**.
 
 ---
 
-## 8. ER Diagram
+## 7. ER Diagram
 
 The Entity–Relationship diagram visually represents all entities, attributes, primary keys, foreign keys, and relationships used in the system.
 
@@ -112,7 +95,7 @@ The Entity–Relationship diagram visually represents all entities, attributes, 
 
 ---
 
-## 9. Authors
+## 8. Authors
 **Shubham Anand (23BCS109)** <br>
 **Soham Juneja (23BCS110)** <br>
 **Srishti Chamoli (23BCS111)** <br>
