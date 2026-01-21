@@ -1,38 +1,95 @@
-Project Title:
-Hostel Allotment Management System
+Database Schema Overview
+-----------
 
------------------------------
-Software Requirements
------------------------------
+Student
+Stores student details required for hostel management.
 
-Frontend:
-- React.js
-- Tailwind CSS
-- HTML5
-- JavaScript (ES6)
+Attributes:
+student_id (PK), roll_no, department, academic_year, gender, phone
 
-Backend:
-- Node.js
-- Express.js
+Relationships:
+A student can submit multiple applications, have multiple allotments over time, make payments, and raise complaints.
 
-Database:
-- MySQL Server
-- MySQL Workbench
+-----------
 
-Tools:
-- Visual Studio Code
-- Git & GitHub
-- Postman (for API testing)
+Hostel
+Represents hostels within the institution.
 
------------------------------
-Database & DBMS Concepts Used
------------------------------
+Attributes:
+hostel_id (PK), hostel_name, hostel_type, total_capacity
 
-- MySQL relational database
-- ER Diagram design
-- Primary and Foreign Keys
-- One-to-Many (1:N) relationships
-- Normalization up to 3NF
-- Stored Procedures
-- Triggers
-- Views
+Relationships:
+A hostel contains multiple rooms, is managed by admins, defines fee structures, and receives applications.
+
+-----------
+
+Room
+Represents rooms in a hostel.
+
+Attributes:
+room_id (PK), hostel_id (FK), room_number, room_type, capacity
+
+Relationships:
+Each room belongs to one hostel and can have multiple allotments and complaints over time.
+
+-----------
+
+Application
+Stores hostel allotment requests from students.
+
+Attributes:
+application_id (PK), student_id (FK), preferred_hostel_id (FK), preferred_room_type, status
+
+Relationships:
+Each application is submitted by one student and linked to one hostel.
+
+-----------
+
+Admin
+Represents hostel authorities.
+
+Attributes:
+admin_id (PK), name, role, phone, email, hostel_id (FK)
+
+Relationships:
+An admin can approve multiple allotments.
+
+-----------
+
+Allotment
+Links students to rooms and maintains allotment history.
+
+Attributes:
+allotment_id (PK), student_id (FK), room_id (FK), admin_id (FK), status, vacated_date
+
+Relationships:
+Each allotment connects one student to one room.
+
+-----------
+
+Fee
+Defines hostel fee structure.
+
+Attributes:
+fee_id (PK), hostel_id (FK), academic_year, amount
+
+Relationships:
+Each fee record can have multiple payments.
+
+-----------
+
+Payment
+Tracks hostel fee payments.
+
+Attributes:
+payment_id (PK), student_id (FK), fee_id (FK), payment_date, status
+
+-----------
+
+Complaint
+Stores student complaints related to hostel facilities.
+
+Attributes:
+complaint_id (PK), student_id (FK), room_id (FK), category, status
+
+-----------
