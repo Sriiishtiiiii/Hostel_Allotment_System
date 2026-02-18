@@ -122,30 +122,6 @@ The frontend will be available at: http://localhost:5173
 curl http://localhost:5000/health
 ```
 
-### Test Login
-
-**Student Login:**
-```bash
-curl -X POST http://localhost:5000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "rahul@example.com",
-    "password": "any-password",
-    "role": "student"
-  }'
-```
-
-**Admin Login:**
-```bash
-curl -X POST http://localhost:5000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@hostel.com",
-    "password": "any-password",
-    "role": "admin"
-  }'
-```
-
 ### Test Protected Endpoint
 
 ```bash
@@ -261,7 +237,7 @@ CORS_ORIGIN=http://localhost:YOUR_FRONTEND_PORT
 
 ## Features Implemented
 
-- ✅ JWT Authentication
+- ✅ Clerk Based Authentication
 - ✅ Role-based Access Control (Student/Admin)
 - ✅ Complete CRUD operations for all entities
 - ✅ Advanced queries with JOINs
