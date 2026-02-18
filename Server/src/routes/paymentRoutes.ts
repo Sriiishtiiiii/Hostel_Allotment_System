@@ -1,4 +1,4 @@
-import express from 'express';
+import { Router } from 'express';
 import {
   getPayments,
   getPayment,
@@ -6,13 +6,17 @@ import {
   updatePayment,
   deletePayment
 } from '../controllers/paymentController.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
-const router = express.Router();
+const router = Router();
 
-router.get('/', getPayments);
-router.get('/:id', getPayment);
-router.post('/', createPayment);
-router.put('/:id', updatePayment);
-router.delete('/:id', deletePayment);
+// Logged-in users can view their payments
+router.get('/', requireAuth, getPayments);
+router.get('/:id', requireAuth, getPayment);
+
+// Only admin should create/update/delete payment records
+router.post('/', requireAuth, requireAdmin, createPayment);
+router.put('/:id', requireAuth, requireAdmin, updatePayment);
+router.delete('/:id', requireAuth, requireAdmin, deletePayment);
 
 export default router;

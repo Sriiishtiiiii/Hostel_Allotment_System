@@ -41,6 +41,7 @@ const Apply = () => {
     data: hostels = [],
     loading: hostelsLoading,
     error: hostelsError,
+    refetch: refetchHostels,
   } = useHostels();
   const createApplication = useCreateApplication();
 
@@ -357,10 +358,18 @@ const Apply = () => {
                     <p className="text-sm text-gray-600 mb-4">{hostelsError}</p>
                     <Button
                       variant="outline"
-                      onClick={() => window.location.reload()}
+                      onClick={() => refetchHostels()}
                       size="sm"
+                      disabled={hostelsLoading}
                     >
-                      Retry
+                      {hostelsLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2 inline" />
+                          Retrying...
+                        </>
+                      ) : (
+                        "Retry"
+                      )}
                     </Button>
                   </div>
                 ) : (

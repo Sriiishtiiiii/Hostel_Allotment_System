@@ -6,14 +6,16 @@ import {
   updateRoom,
   deleteRoom,
 } from '../controllers/roomController.js';
-import { authenticate, authorize } from '../middleware/auth.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', authenticate, getAllRooms);
-router.get('/:id', authenticate, getRoomById);
-router.post('/', authenticate, authorize('admin'), createRoom);
-router.put('/:id', authenticate, authorize('admin'), updateRoom);
-router.delete('/:id', authenticate, authorize('admin'), deleteRoom);
+router.get('/', getAllRooms);
+
+router.get('/:id', requireAuth, getRoomById);
+
+router.post('/', requireAuth, requireAdmin, createRoom);
+router.put('/:id', requireAuth, requireAdmin, updateRoom);
+router.delete('/:id', requireAuth, requireAdmin, deleteRoom);
 
 export default router;

@@ -6,14 +6,15 @@ import {
   updateFee,
   deleteFee,
 } from '../controllers/feeController.js';
-import { authenticate, authorize } from '../middleware/auth.js';
+
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', authenticate, getAllFees);
-router.get('/:id', authenticate, getFeeById);
-router.post('/', authenticate, authorize('admin'), createFee);
-router.put('/:id', authenticate, authorize('admin'), updateFee);
-router.delete('/:id', authenticate, authorize('admin'), deleteFee);
+router.get('/', requireAuth, getAllFees);
+router.get('/:id', requireAuth, getFeeById);
+router.post('/', requireAuth, createFee);
+router.put('/:id', requireAuth, updateFee);
+router.delete('/:id', requireAuth, deleteFee);
 
 export default router;

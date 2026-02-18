@@ -39,17 +39,22 @@ app.use(helmet({
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
       process.env.CORS_ORIGIN || 'http://localhost:5173',
-      'http://localhost:3000', // Common React dev port
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:5173',
       'http://127.0.0.1:5173',
-      'http://127.0.0.1:3000'
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
     ];
+    // In development, allow any localhost / 127.0.0.1 origin (any port)
+    const isDev = process.env.NODE_ENV !== 'production';
+    const isLocalOrigin = isDev && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
     
-    if (allowedOrigins.includes(origin)) {
+    if (allowedOrigins.includes(origin) || isLocalOrigin) {
       callback(null, true);
     } else {
       console.warn(`🚫 CORS blocked origin: ${origin}`);

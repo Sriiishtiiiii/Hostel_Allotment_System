@@ -1,71 +1,74 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../utils/auth.js';
-import { AuthUser } from '../models/types.js';
+import { verifyToken } from '@clerk/backend';
+import pool from '../config/database.js';
+import { RowDataPacket } from 'mysql2';
 
+/**
+ * Extend Express Request type
+ */
 export interface AuthRequest extends Request {
-  user?: AuthUser;
+  user?: {
+    clerkId: string;
+  };
 }
 
-export const authenticate = (
+/**
+ * Clerk Authentication Middleware
+ */
+export const requireAuth = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
-): void => {
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
 
-    // Check if authorization header exists and has Bearer token
-    if (!authHeader) {
-      res.status(401).json({ error: 'No authorization header provided' });
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ message: 'Unauthorized' });
       return;
     }
 
-    if (!authHeader.startsWith('Bearer ')) {
-      res.status(401).json({ error: 'Invalid authorization header format. Expected: Bearer <token>' });
-      return;
-    }
+    const token = authHeader.replace('Bearer ', '');
 
-    // Extract token from Bearer scheme
-    const token = authHeader.substring(7).trim();
+    const payload = await verifyToken(token, {
+      secretKey: process.env.CLERK_SECRET_KEY!,
+    });
 
-    if (!token) {
-      res.status(401).json({ error: 'No token provided' });
-      return;
-    }
+    req.user = {
+      clerkId: payload.sub,
+    };
 
-    // Verify and decode token
-    const user = verifyToken(token);
-
-    if (!user) {
-      res.status(401).json({ error: 'Invalid or expired token' });
-      return;
-    }
-
-    // Attach user to request object
-    req.user = user;
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    res.status(401).json({ error: 'Authentication failed' });
+    res.status(401).json({ message: 'Invalid or expired token' });
   }
 };
 
-export const authorize = (...roles: string[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction): void => {
-    // Check if user is authenticated
-    if (!req.user) {
-      res.status(401).json({ error: 'Not authenticated' });
+export const requireAdmin = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const clerkId = req.user?.clerkId;
+
+    if (!clerkId) {
+      res.status(401).json({ message: 'Unauthorized' });
       return;
     }
 
-    // Check if user has required role
-    if (!roles.includes(req.user.role)) {
-      res.status(403).json({ 
-        error: `Insufficient permissions. Required roles: ${roles.join(', ')}, but got: ${req.user.role}` 
-      });
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT is_admin FROM Student WHERE clerk_id = ?',
+      [clerkId]
+    );
+
+    if (!rows.length || !rows[0].is_admin) {
+      res.status(403).json({ message: 'Admin access required' });
       return;
     }
 
     next();
-  };
+  } catch {
+    res.status(500).json({ message: 'Authorization failed' });
+  }
 };

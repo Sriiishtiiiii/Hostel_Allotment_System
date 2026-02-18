@@ -3,12 +3,25 @@ import pool from '../config/database.js';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import { ResponseHelper, logRequest, logSuccess, logError } from '../utils/response.js';
 
-// Get all students
-export const getStudents = async (req: Request, res: Response) => {
+/**
+ * GET /api/students
+ * Admin-only route (should be protected later)
+ */
+export const getStudents = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   logRequest('GET', '/api/students');
+
   try {
-    const query = `SELECT * FROM Student ORDER BY name`;
-    const [rows] = await pool.execute<RowDataPacket[]>(query);
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT student_id, clerk_id, name, roll_no, department,
+              academic_year, gender, phone, email, cgpa,
+              is_admin, created_at
+       FROM Student
+       ORDER BY name`
+    );
+
     logSuccess('GET', '/api/students', `Retrieved ${rows.length} students`);
     return ResponseHelper.success(res, 'Students retrieved successfully', rows);
   } catch (error) {
@@ -17,15 +30,27 @@ export const getStudents = async (req: Request, res: Response) => {
   }
 };
 
-// Get single student
-export const getStudent = async (req: Request, res: Response) => {
+/**
+ * GET /api/students/:id
+ */
+export const getStudent = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const { id } = req.params;
   logRequest('GET', `/api/students/${id}`);
-  try {
-    const query = `SELECT * FROM Student WHERE student_id = ?`;
-    const [rows] = await pool.execute<RowDataPacket[]>(query, [id]);
 
-    if (rows.length === 0) {
+  try {
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT student_id, clerk_id, name, roll_no, department,
+              academic_year, gender, phone, email, cgpa,
+              is_admin, created_at
+       FROM Student
+       WHERE student_id = ?`,
+      [id]
+    );
+
+    if (!rows.length) {
       return ResponseHelper.notFound(res, 'Student');
     }
 
@@ -37,75 +62,70 @@ export const getStudent = async (req: Request, res: Response) => {
   }
 };
 
-// Create new student
-export const createStudent = async (req: Request, res: Response) => {
-  logRequest('POST', '/api/students');
-  try {
-    const { student_id, name, roll_no, department, academic_year, gender, phone, email, cgpa } = req.body;
-
-    if (!student_id || !name || !roll_no || !department || !academic_year || !gender || !phone || !email) {
-      return ResponseHelper.badRequest(res, 'Required fields are missing');
-    }
-
-    const query = `
-      INSERT INTO Student (student_id, name, roll_no, department, academic_year, gender, phone, email, cgpa)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    await pool.execute<ResultSetHeader>(query, [
-      student_id, name, roll_no, department, academic_year, gender, phone, email, cgpa || null
-    ]);
-
-    logSuccess('POST', '/api/students', `Student created: ${student_id} (DB write success)`);
-    return ResponseHelper.created(res, 'Student created successfully', { student_id });
-  } catch (error) {
-    logError('POST', '/api/students', error as Error);
-    return ResponseHelper.error(res, 'Failed to create student', 500, (error as Error).message);
-  }
-};
-
-// Update student
-export const updateStudent = async (req: Request, res: Response) => {
+/**
+ * PUT /api/students/:id
+ * Admin edit student
+ */
+export const updateStudent = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const { id } = req.params;
   logRequest('PUT', `/api/students/${id}`);
+
   try {
     const { name, roll_no, department, academic_year, gender, phone, email, cgpa } = req.body;
 
-    const query = `
-      UPDATE Student 
-      SET name = ?, roll_no = ?, department = ?, academic_year = ?, gender = ?, phone = ?, email = ?, cgpa = ?
-      WHERE student_id = ?
-    `;
+    if (!name || !roll_no || !department || !academic_year || !gender) {
+      return ResponseHelper.badRequest(res, 'Required fields are missing');
+    }
 
-    const [result] = await pool.execute<ResultSetHeader>(query, [
-      name, roll_no, department, academic_year, gender, phone, email, cgpa || null, id
-    ]);
+    const [result] = await pool.execute<ResultSetHeader>(
+      `UPDATE Student
+       SET name = ?, roll_no = ?, department = ?, academic_year = ?,
+           gender = ?, phone = ?, email = ?, cgpa = ?
+       WHERE student_id = ?`,
+      [name, roll_no, department, academic_year, gender, phone || null, email || null, cgpa || null, id]
+    );
 
-    if (result.affectedRows === 0) {
+    if (!result.affectedRows) {
       return ResponseHelper.notFound(res, 'Student');
     }
 
-    logSuccess('PUT', `/api/students/${id}`, 'Student updated (DB write success)');
+    logSuccess('PUT', `/api/students/${id}`, 'Student updated');
     return ResponseHelper.success(res, 'Student updated successfully');
-  } catch (error) {
-    logError('PUT', `/api/students/${id}`, error as Error);
-    return ResponseHelper.error(res, 'Failed to update student', 500, (error as Error).message);
+  } catch (error: any) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return ResponseHelper.badRequest(res, 'Roll number or email already exists');
+    }
+
+    logError('PUT', `/api/students/${id}`, error);
+    return ResponseHelper.error(res, 'Failed to update student', 500, error.message);
   }
 };
 
-// Delete student
-export const deleteStudent = async (req: Request, res: Response) => {
+/**
+ * DELETE /api/students/:id
+ * Admin-only
+ */
+export const deleteStudent = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const { id } = req.params;
   logRequest('DELETE', `/api/students/${id}`);
-  try {
-    const query = `DELETE FROM Student WHERE student_id = ?`;
-    const [result] = await pool.execute<ResultSetHeader>(query, [id]);
 
-    if (result.affectedRows === 0) {
+  try {
+    const [result] = await pool.execute<ResultSetHeader>(
+      'DELETE FROM Student WHERE student_id = ?',
+      [id]
+    );
+
+    if (!result.affectedRows) {
       return ResponseHelper.notFound(res, 'Student');
     }
 
-    logSuccess('DELETE', `/api/students/${id}`, 'Student deleted (DB write success)');
+    logSuccess('DELETE', `/api/students/${id}`, 'Student deleted');
     return ResponseHelper.success(res, 'Student deleted successfully');
   } catch (error) {
     logError('DELETE', `/api/students/${id}`, error as Error);

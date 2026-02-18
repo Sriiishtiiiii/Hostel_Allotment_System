@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 
+/* ----------------------------- Types ----------------------------- */
+
 export interface ApiState<T> {
   data: T | null;
   loading: boolean;
   error: string | null;
   success: boolean;
+  refetch: () => Promise<void>;
 }
 
 export interface ApiMutation<TData, TVariables = void> {
@@ -17,153 +20,182 @@ export interface ApiMutation<TData, TVariables = void> {
   reset: () => void;
 }
 
-// Hook for fetching data
+/* -------------------------- Query Hook --------------------------- */
+
 export function useApiQuery<T>(
   queryFn: () => Promise<T>,
-  dependencies: any[] = []
+  dependencies: any[] = [],
+  enabled: boolean = true
 ): ApiState<T> {
-  const [state, setState] = useState<ApiState<T>>({
-    data: null,
-    loading: true,
-    error: null,
-    success: false
-  });
-
-  const fetchData = useCallback(async () => {
-    setState(prev => ({ ...prev, loading: true, error: null }));
-    
-    try {
-      const data = await queryFn();
-      setState({
-        data,
-        loading: false,
-        error: null,
-        success: true
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
-      setState({
-        data: null,
-        loading: false,
-        error: errorMessage,
-        success: false
-      });
-      console.error('API Query Error:', error);
-    }
-  }, dependencies);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  return state;
-}
-
-// Hook for mutations (create, update, delete)
-export function useApiMutation<TData, TVariables = void>(
-  mutationFn: (variables: TVariables) => Promise<TData>,
-  options: {
-    onSuccess?: (data: TData) => void;
-    onError?: (error: string) => void;
-    showSuccessToast?: boolean;
-    showErrorToast?: boolean;
-    successMessage?: string;
-  } = {}
-): ApiMutation<TData, TVariables> {
-  const [state, setState] = useState<{
-    data: TData | null;
-    loading: boolean;
-    error: string | null;
-    success: boolean;
-  }>({
+  const [state, setState] = useState<Omit<ApiState<T>, 'refetch'>>({
     data: null,
     loading: false,
     error: null,
     success: false
   });
 
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
+  const isMounted = useRef(true);
 
-  const mutate = useCallback(async (variables: TVariables): Promise<TData> => {
-    setState(prev => ({ ...prev, loading: true, error: null, success: false }));
-    const opts = optionsRef.current;
+  const fetchData = useCallback(async () => {
+    if (!enabled) return;
+
+    setState(prev => ({ ...prev, loading: true, error: null }));
+
     try {
-      const data = await mutationFn(variables);
+      const data = await queryFn();
+
+      if (!isMounted.current) return;
+
       setState({
         data,
         loading: false,
         error: null,
         success: true
       });
+    } catch (err) {
+      if (!isMounted.current) return;
 
-      if (opts.showSuccessToast !== false) {
-        toast.success(opts.successMessage || 'Operation completed successfully');
-      }
+      const message =
+        err instanceof Error ? err.message : 'Failed to fetch data';
 
-      opts.onSuccess?.(data);
-      return data;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
       setState({
         data: null,
         loading: false,
-        error: errorMessage,
+        error: message,
         success: false
       });
 
-      if (opts.showErrorToast !== false) {
-        toast.error(errorMessage);
-      }
-
-      opts.onError?.(errorMessage);
-      throw error;
+      console.error('API QUERY ERROR:', err);
     }
-  }, [mutationFn]);
+  }, [enabled, ...dependencies]);
 
-  const reset = useCallback(() => {
+  useEffect(() => {
+    isMounted.current = true;
+    fetchData();
+
+    return () => {
+      isMounted.current = false;
+    };
+  }, [fetchData]);
+
+  return { ...state, refetch: fetchData };
+}
+
+/* ------------------------- Mutation Hook -------------------------- */
+
+export function useApiMutation<TData, TVariables = void>(
+  mutationFn: (variables: TVariables) => Promise<TData>,
+  options?: {
+    onSuccess?: (data: TData) => void;
+    onError?: (error: string) => void;
+    showSuccessToast?: boolean;
+    showErrorToast?: boolean;
+    successMessage?: string;
+  }
+): ApiMutation<TData, TVariables> {
+  const [state, setState] = useState({
+    data: null as TData | null,
+    loading: false,
+    error: null as string | null,
+    success: false
+  });
+
+  const mutate = useCallback(
+    async (variables: TVariables): Promise<TData> => {
+      setState({
+        data: null,
+        loading: true,
+        error: null,
+        success: false
+      });
+
+      try {
+        const data = await mutationFn(variables);
+
+        setState({
+          data,
+          loading: false,
+          error: null,
+          success: true
+        });
+
+        if (options?.showSuccessToast !== false) {
+          toast.success(
+            options?.successMessage ?? 'Operation completed successfully'
+          );
+        }
+
+        options?.onSuccess?.(data);
+        return data;
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Operation failed';
+
+        setState({
+          data: null,
+          loading: false,
+          error: message,
+          success: false
+        });
+
+        if (options?.showErrorToast !== false) {
+          toast.error(message);
+        }
+
+        options?.onError?.(message);
+        throw err;
+      }
+    },
+    [mutationFn, options]
+  );
+
+  const reset = () => {
     setState({
       data: null,
       loading: false,
       error: null,
       success: false
     });
-  }, []);
-
-  return {
-    mutate,
-    data: state.data,
-    loading: state.loading,
-    error: state.error,
-    success: state.success,
-    reset
   };
+
+  return { ...state, mutate, reset };
 }
 
-// Specific hooks for common operations
+/* ----------------------- Domain Hooks ----------------------------- */
+
 export function useApplications(studentId?: number, status?: string) {
-  return useApiQuery(async () => {
-    const { api } = await import('@/lib/api');
-    return api.getApplications(studentId, status);
-  }, [studentId, status]);
+  return useApiQuery(
+    async () => {
+      const { api } = await import('@/lib/api');
+      return api.getApplications(studentId, status);
+    },
+    [studentId, status],
+    Boolean(studentId)
+  );
 }
 
 export function useCreateApplication() {
-  return useApiMutation(async (data: any) => {
-    const { api } = await import('@/lib/api');
-    return api.createApplication(data);
-  }, {
-    successMessage: 'Application submitted successfully!'
-  });
+  return useApiMutation(
+    async (data: any) => {
+      const { api } = await import('@/lib/api');
+      return api.createApplication(data);
+    },
+    {
+      successMessage: 'Application submitted successfully'
+    }
+  );
 }
 
 export function useUpdateApplication() {
-  return useApiMutation(async ({ id, data }: { id: number; data: any }) => {
-    const { api } = await import('@/lib/api');
-    return api.updateApplication(id, data);
-  }, {
-    successMessage: 'Application updated successfully!'
-  });
+  return useApiMutation(
+    async ({ id, data }: { id: number; data: any }) => {
+      const { api } = await import('@/lib/api');
+      return api.updateApplication(id, data);
+    },
+    {
+      successMessage: 'Application updated successfully'
+    }
+  );
 }
 
 export function useHostels() {
@@ -174,8 +206,12 @@ export function useHostels() {
 }
 
 export function useRooms(hostelId?: number) {
-  return useApiQuery(async () => {
-    const { api } = await import('@/lib/api');
-    return api.getRooms(hostelId);
-  }, [hostelId]);
+  return useApiQuery(
+    async () => {
+      const { api } = await import('@/lib/api');
+      return api.getRooms(hostelId);
+    },
+    [hostelId],
+    Boolean(hostelId)
+  );
 }

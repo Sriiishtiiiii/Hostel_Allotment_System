@@ -1,17 +1,22 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import pool from '../config/database.js';
-import { AuthRequest } from '../middleware/auth.js';
 import { ResponseHelper, logRequest, logSuccess, logError } from '../utils/response.js';
 
-export const getAllHostels = async (req: AuthRequest, res: Response): Promise<void> => {
+/**
+ * GET /api/hostels
+ */
+export const getAllHostels = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   logRequest('GET', '/api/hostels');
-  
+
   try {
     const [hostels] = await pool.query<RowDataPacket[]>(
-      `SELECT h.*, 
-        COUNT(DISTINCT r.room_id) as total_rooms,
-        COUNT(DISTINCT CASE WHEN a.status = 'Active' THEN a.allotment_id END) as occupied_rooms
+      `SELECT h.*,
+              COUNT(DISTINCT r.room_id) AS total_rooms,
+              COUNT(DISTINCT CASE WHEN a.status = 'Active' THEN a.allotment_id END) AS occupied_rooms
        FROM Hostel h
        LEFT JOIN Room r ON h.hostel_id = r.hostel_id
        LEFT JOIN Allotment a ON r.room_id = a.room_id AND a.status = 'Active'
@@ -19,23 +24,30 @@ export const getAllHostels = async (req: AuthRequest, res: Response): Promise<vo
     );
 
     logSuccess('GET', '/api/hostels', `Retrieved ${hostels.length} hostels`);
-    ResponseHelper.success(res, 'Hostels retrieved successfully', hostels);
+    return ResponseHelper.success(res, 'Hostels retrieved successfully', hostels);
   } catch (error) {
     logError('GET', '/api/hostels', error as Error);
-    ResponseHelper.error(res, 'Failed to fetch hostels', 500, (error as Error).message);
+    return ResponseHelper.error(res, 'Failed to fetch hostels', 500, (error as Error).message);
   }
 };
 
-export const getHostelById = async (req: AuthRequest, res: Response): Promise<void> => {
+/**
+ * GET /api/hostels/:id
+ */
+export const getHostelById = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const { id } = req.params;
   logRequest('GET', `/api/hostels/${id}`);
+
   try {
     const [hostels] = await pool.query<RowDataPacket[]>(
       'SELECT * FROM Hostel WHERE hostel_id = ?',
       [id]
     );
 
-    if (hostels.length === 0) {
+    if (!hostels.length) {
       return ResponseHelper.notFound(res, 'Hostel');
     }
 
@@ -47,18 +59,35 @@ export const getHostelById = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-export const createHostel = async (req: AuthRequest, res: Response): Promise<void> => {
+/**
+ * POST /api/hostels
+ */
+export const createHostel = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   logRequest('POST', '/api/hostels');
+
   try {
     const { hostel_name, type, capacity } = req.body;
+
+    if (!hostel_name || !type || !capacity) {
+      return ResponseHelper.badRequest(res, 'All fields are required');
+    }
 
     const [result] = await pool.query<ResultSetHeader>(
       'INSERT INTO Hostel (hostel_name, type, capacity) VALUES (?, ?, ?)',
       [hostel_name, type, capacity]
     );
 
-    const data = { hostel_id: result.insertId, hostel_name, type, capacity };
-    logSuccess('POST', '/api/hostels', `Hostel created: ${result.insertId} (DB write success)`);
+    const data = {
+      hostel_id: result.insertId,
+      hostel_name,
+      type,
+      capacity
+    };
+
+    logSuccess('POST', '/api/hostels', `Hostel created: ${result.insertId}`);
     return ResponseHelper.created(res, 'Hostel created successfully', data);
   } catch (error) {
     logError('POST', '/api/hostels', error as Error);
@@ -66,22 +95,33 @@ export const createHostel = async (req: AuthRequest, res: Response): Promise<voi
   }
 };
 
-export const updateHostel = async (req: AuthRequest, res: Response): Promise<void> => {
+/**
+ * PUT /api/hostels/:id
+ */
+export const updateHostel = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const { id } = req.params;
   logRequest('PUT', `/api/hostels/${id}`);
+
   try {
     const { hostel_name, type, capacity } = req.body;
+
+    if (!hostel_name || !type || !capacity) {
+      return ResponseHelper.badRequest(res, 'All fields are required');
+    }
 
     const [result] = await pool.query<ResultSetHeader>(
       'UPDATE Hostel SET hostel_name = ?, type = ?, capacity = ? WHERE hostel_id = ?',
       [hostel_name, type, capacity, id]
     );
 
-    if (result.affectedRows === 0) {
+    if (!result.affectedRows) {
       return ResponseHelper.notFound(res, 'Hostel');
     }
 
-    logSuccess('PUT', `/api/hostels/${id}`, 'Hostel updated (DB write success)');
+    logSuccess('PUT', `/api/hostels/${id}`, 'Hostel updated');
     return ResponseHelper.success(res, 'Hostel updated successfully');
   } catch (error) {
     logError('PUT', `/api/hostels/${id}`, error as Error);
@@ -89,20 +129,27 @@ export const updateHostel = async (req: AuthRequest, res: Response): Promise<voi
   }
 };
 
-export const deleteHostel = async (req: AuthRequest, res: Response): Promise<void> => {
+/**
+ * DELETE /api/hostels/:id
+ */
+export const deleteHostel = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const { id } = req.params;
   logRequest('DELETE', `/api/hostels/${id}`);
+
   try {
     const [result] = await pool.query<ResultSetHeader>(
       'DELETE FROM Hostel WHERE hostel_id = ?',
       [id]
     );
 
-    if (result.affectedRows === 0) {
+    if (!result.affectedRows) {
       return ResponseHelper.notFound(res, 'Hostel');
     }
 
-    logSuccess('DELETE', `/api/hostels/${id}`, 'Hostel deleted (DB write success)');
+    logSuccess('DELETE', `/api/hostels/${id}`, 'Hostel deleted');
     return ResponseHelper.success(res, 'Hostel deleted successfully');
   } catch (error) {
     logError('DELETE', `/api/hostels/${id}`, error as Error);

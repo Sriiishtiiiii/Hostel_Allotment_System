@@ -6,14 +6,17 @@ import {
   updateAllotment,
   deleteAllotment,
 } from '../controllers/allotmentController.js';
-import { authenticate, authorize } from '../middleware/auth.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/', authenticate, getAllAllotments);
-router.get('/:id', authenticate, getAllotmentById);
-router.post('/', authenticate, authorize('admin'), createAllotment);
-router.put('/:id', authenticate, authorize('admin'), updateAllotment);
-router.delete('/:id', authenticate, authorize('admin'), deleteAllotment);
+// Logged-in users can view
+router.get('/', requireAuth, getAllAllotments);
+router.get('/:id', requireAuth, getAllotmentById);
+
+// Only admin can modify
+router.post('/', requireAuth, requireAdmin, createAllotment);
+router.put('/:id', requireAuth, requireAdmin, updateAllotment);
+router.delete('/:id', requireAuth, requireAdmin, deleteAllotment);
 
 export default router;

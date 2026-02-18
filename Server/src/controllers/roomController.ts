@@ -1,17 +1,25 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import pool from '../config/database.js';
-import { AuthRequest } from '../middleware/auth.js';
 import { ResponseHelper, logRequest, logSuccess, logError } from '../utils/response.js';
 
-export const getAllRooms = async (req: AuthRequest, res: Response): Promise<void> => {
+/**
+ * GET /api/rooms
+ */
+export const getAllRooms = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   logRequest('GET', '/api/rooms');
+
   try {
     const { hostel_id } = req.query;
 
     let query = `
-      SELECT r.*, h.hostel_name, h.type as hostel_type,
-        COUNT(CASE WHEN a.status = 'Active' THEN a.allotment_id END) as current_occupancy
+      SELECT r.*, 
+             h.hostel_name, 
+             h.type AS hostel_type,
+             COUNT(CASE WHEN a.status = 'Active' THEN a.allotment_id END) AS current_occupancy
       FROM Room r
       JOIN Hostel h ON r.hostel_id = h.hostel_id
       LEFT JOIN Allotment a ON r.room_id = a.room_id AND a.status = 'Active'
@@ -27,6 +35,7 @@ export const getAllRooms = async (req: AuthRequest, res: Response): Promise<void
     query += ' GROUP BY r.room_id';
 
     const [rooms] = await pool.query<RowDataPacket[]>(query, params);
+
     logSuccess('GET', '/api/rooms', `Retrieved ${rooms.length} rooms`);
     return ResponseHelper.success(res, 'Rooms retrieved successfully', rooms);
   } catch (error) {
@@ -35,13 +44,21 @@ export const getAllRooms = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-export const getRoomById = async (req: AuthRequest, res: Response): Promise<void> => {
+/**
+ * GET /api/rooms/:id
+ */
+export const getRoomById = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const { id } = req.params;
   logRequest('GET', `/api/rooms/${id}`);
+
   try {
     const [rooms] = await pool.query<RowDataPacket[]>(
-      `SELECT r.*, h.hostel_name, 
-        GROUP_CONCAT(s.name) as occupants
+      `SELECT r.*, 
+              h.hostel_name,
+              GROUP_CONCAT(s.name) AS occupants
        FROM Room r
        JOIN Hostel h ON r.hostel_id = h.hostel_id
        LEFT JOIN Allotment a ON r.room_id = a.room_id AND a.status = 'Active'
@@ -51,7 +68,7 @@ export const getRoomById = async (req: AuthRequest, res: Response): Promise<void
       [id]
     );
 
-    if (rooms.length === 0) {
+    if (!rooms.length) {
       return ResponseHelper.notFound(res, 'Room');
     }
 
@@ -63,41 +80,77 @@ export const getRoomById = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-export const createRoom = async (req: AuthRequest, res: Response): Promise<void> => {
+/**
+ * POST /api/rooms
+ */
+export const createRoom = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   logRequest('POST', '/api/rooms');
+
   try {
     const { hostel_id, room_number, room_type, capacity } = req.body;
+
+    if (!hostel_id || !room_number || !room_type || !capacity) {
+      return ResponseHelper.badRequest(res, 'All fields are required');
+    }
 
     const [result] = await pool.query<ResultSetHeader>(
       'INSERT INTO Room (hostel_id, room_number, room_type, capacity) VALUES (?, ?, ?, ?)',
       [hostel_id, room_number, room_type, capacity]
     );
 
-    const data = { room_id: result.insertId, hostel_id, room_number, room_type, capacity };
-    logSuccess('POST', '/api/rooms', `Room created: ${result.insertId} (DB write success)`);
+    const data = {
+      room_id: result.insertId,
+      hostel_id,
+      room_number,
+      room_type,
+      capacity
+    };
+
+    logSuccess('POST', '/api/rooms', `Room created: ${result.insertId}`);
     return ResponseHelper.created(res, 'Room created successfully', data);
-  } catch (error) {
-    logError('POST', '/api/rooms', error as Error);
-    return ResponseHelper.error(res, 'Failed to create room', 500, (error as Error).message);
+  } catch (error: any) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return ResponseHelper.badRequest(
+        res,
+        'Room number already exists in this hostel'
+      );
+    }
+
+    logError('POST', '/api/rooms', error);
+    return ResponseHelper.error(res, 'Failed to create room', 500, error.message);
   }
 };
 
-export const updateRoom = async (req: AuthRequest, res: Response): Promise<void> => {
+/**
+ * PUT /api/rooms/:id
+ */
+export const updateRoom = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const { id } = req.params;
   logRequest('PUT', `/api/rooms/${id}`);
+
   try {
     const { hostel_id, room_number, room_type, capacity } = req.body;
+
+    if (!hostel_id || !room_number || !room_type || !capacity) {
+      return ResponseHelper.badRequest(res, 'All fields are required');
+    }
 
     const [result] = await pool.query<ResultSetHeader>(
       'UPDATE Room SET hostel_id = ?, room_number = ?, room_type = ?, capacity = ? WHERE room_id = ?',
       [hostel_id, room_number, room_type, capacity, id]
     );
 
-    if (result.affectedRows === 0) {
+    if (!result.affectedRows) {
       return ResponseHelper.notFound(res, 'Room');
     }
 
-    logSuccess('PUT', `/api/rooms/${id}`, 'Room updated (DB write success)');
+    logSuccess('PUT', `/api/rooms/${id}`, 'Room updated');
     return ResponseHelper.success(res, 'Room updated successfully');
   } catch (error) {
     logError('PUT', `/api/rooms/${id}`, error as Error);
@@ -105,20 +158,27 @@ export const updateRoom = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
-export const deleteRoom = async (req: AuthRequest, res: Response): Promise<void> => {
+/**
+ * DELETE /api/rooms/:id
+ */
+export const deleteRoom = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const { id } = req.params;
   logRequest('DELETE', `/api/rooms/${id}`);
+
   try {
     const [result] = await pool.query<ResultSetHeader>(
       'DELETE FROM Room WHERE room_id = ?',
       [id]
     );
 
-    if (result.affectedRows === 0) {
+    if (!result.affectedRows) {
       return ResponseHelper.notFound(res, 'Room');
     }
 
-    logSuccess('DELETE', `/api/rooms/${id}`, 'Room deleted (DB write success)');
+    logSuccess('DELETE', `/api/rooms/${id}`, 'Room deleted');
     return ResponseHelper.success(res, 'Room deleted successfully');
   } catch (error) {
     logError('DELETE', `/api/rooms/${id}`, error as Error);

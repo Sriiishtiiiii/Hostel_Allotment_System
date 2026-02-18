@@ -8,6 +8,8 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { Toaster } from "react-hot-toast";
+import { useEffect } from "react";
+import { api } from "@/lib/api";
 
 // Pages
 import Index from "./pages/Index";
@@ -61,9 +63,23 @@ function ProtectedRoute({
 }
 
 const App = () => {
+  const { getToken, isLoaded } = useAuth();
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    api.setTokenGetter(async () => {
+      return await getToken({ template: "backend" });
+    });
+  }, [getToken, isLoaded]);
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
+      <Router
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <div className="min-h-screen">
           <Routes>
             {/* Public Routes */}

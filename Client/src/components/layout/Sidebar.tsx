@@ -2,17 +2,16 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
-  Building2,
+  Home,
   CreditCard,
   MessageSquare,
-  Users,
-  Settings,
   LogOut,
-  Home,
+  Building2,
   ClipboardList,
   DoorOpen,
+  Users,
 } from "lucide-react";
-import { useAuth } from "@/contexts/ClerkAuthContext";
+import { useClerk, useUser } from "@clerk/clerk-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -22,62 +21,60 @@ interface NavItem {
 }
 
 const studentNavItems: NavItem[] = [
-  { label: "Dashboard", path: "/student", icon: LayoutDashboard },
+  { label: "Dashboard", path: "/student/dashboard", icon: LayoutDashboard },
   { label: "Apply for Hostel", path: "/student/apply", icon: FileText },
-  { label: "Room Selection", path: "/student/rooms", icon: DoorOpen },
   { label: "My Allotment", path: "/student/allotment", icon: Home },
   { label: "Payments", path: "/student/payments", icon: CreditCard },
   { label: "Complaints", path: "/student/complaints", icon: MessageSquare },
 ];
 
 const adminNavItems: NavItem[] = [
-  { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
+  { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Applications", path: "/admin/applications", icon: ClipboardList },
   { label: "Room Allotment", path: "/admin/allotment", icon: DoorOpen },
-  { label: "Manage Hostels", path: "/admin/hostels", icon: Building2 },
   { label: "Students", path: "/admin/students", icon: Users },
   { label: "Payments", path: "/admin/payments", icon: CreditCard },
   { label: "Complaints", path: "/admin/complaints", icon: MessageSquare },
 ];
 
 export const Sidebar = () => {
-  const { role, user, logout } = useAuth();
   const location = useLocation();
+  const { user } = useUser();
+  const { signOut } = useClerk();
+
+  const role = (user?.publicMetadata?.role as "student" | "admin") || "student";
 
   const navItems = role === "admin" ? adminNavItems : studentNavItems;
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar text-sidebar-foreground flex flex-col z-50">
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar flex flex-col z-50">
       {/* Logo */}
-      <div className="p-6 border-b border-sidebar-border">
+      <div className="p-6 border-b">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-sidebar-primary flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-sidebar-primary-foreground" />
+            <Building2 className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="font-display font-bold text-lg text-sidebar-foreground">
-              HostelHub
-            </h1>
-            <p className="text-xs text-sidebar-foreground/60 capitalize">
-              {role} Portal
-            </p>
+            <h1 className="font-bold text-lg">HostelHub</h1>
+            <p className="text-xs opacity-60 capitalize">{role} Portal</p>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
+
           return (
             <NavLink
               key={item.path}
               to={item.path}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
+                "flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition",
                 isActive
                   ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
+                  : "opacity-80 hover:opacity-100 hover:bg-sidebar-accent/50",
               )}
             >
               <item.icon className="w-5 h-5" />
@@ -87,26 +84,18 @@ export const Sidebar = () => {
         })}
       </nav>
 
-      {/* User Info & Logout */}
-      <div className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center gap-3 px-4 py-3 mb-2">
-          <div className="w-10 h-10 rounded-full bg-sidebar-accent flex items-center justify-center">
-            <span className="text-sm font-semibold text-sidebar-primary">
-              {user?.name.charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">
-              {user?.name}
-            </p>
-            <p className="text-xs text-sidebar-foreground/60 truncate">
-              {user?.email}
-            </p>
-          </div>
+      {/* User & Logout */}
+      <div className="p-4 border-t">
+        <div className="mb-3">
+          <p className="text-sm font-medium">{user?.fullName}</p>
+          <p className="text-xs opacity-60">
+            {user?.primaryEmailAddress?.emailAddress}
+          </p>
         </div>
+
         <button
-          onClick={logout}
-          className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-sidebar-foreground/70 hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
+          onClick={() => signOut()}
+          className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm hover:bg-red-500/10 hover:text-red-500"
         >
           <LogOut className="w-5 h-5" />
           Sign Out

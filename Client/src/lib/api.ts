@@ -1,11 +1,26 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// src/lib/api.ts
+
+// Must be full backend URL (e.g. http://localhost:5000/api)
+const raw = import.meta.env.VITE_API_URL ?? '';
+const API_BASE_URL =
+  raw.startsWith('/') && import.meta.env.DEV
+    ? 'http://localhost:5000/api'
+    : raw || 'http://localhost:5000/api';
+
+if (import.meta.env.DEV) {
+  console.log(
+    '[API] Base URL:',
+    API_BASE_URL,
+    '— backend must be running at this address'
+  );
+}
 
 interface ApiResponse<T = any> {
   success: boolean;
   message: string;
   data?: T;
   error?: string;
-  timestamp: string;
+  timestamp?: string;
 }
 
 class ApiClient {
@@ -16,222 +31,244 @@ class ApiClient {
     this.baseUrl = baseUrl;
   }
 
+  // 🔑 Clerk token injector (set once in App.tsx)
   setTokenGetter(getToken: () => Promise<string | null>) {
     this.getToken = getToken;
   }
 
-  private async request<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  private async request<T = any>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
     const token = this.getToken ? await this.getToken() : null;
-    
+
     const config: RequestInit = {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
     };
 
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, config);
-      
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ 
-          success: false,
-          message: `HTTP ${response.status}: ${response.statusText}`,
-          error: 'Network error'
-        })) as ApiResponse;
-        
-        throw new Error(errorData.message || errorData.error || `HTTP ${response.status}`);
+        const err = await response.json().catch(() => ({
+          message: response.statusText,
+        }));
+        throw new Error(err.message || `HTTP ${response.status}`);
       }
 
-      const data = await response.json().catch(() => ({})) as ApiResponse<T>;
-      
-      if (data && typeof data === 'object' && data.success === false) {
-        throw new Error(data.message || data.error || 'Request failed');
+      const json = (await response.json()) as ApiResponse<T>;
+
+      if (json.success === false) {
+        throw new Error(json.message || json.error || 'Request failed');
       }
-      
-      // Standardized format: { success, message, data }; legacy: { message, token, user } or { message, complaint }
-      if (data && typeof data === 'object' && 'data' in data && data.data !== undefined) {
-        return data.data as T;
-      }
-      return data as T;
+
+      // Standard backend format: { success, message, data }
+      return json.data as T;
     } catch (error) {
-      console.error(`API Error [${options.method || 'GET'} ${endpoint}]:`, error);
+      console.error(
+        `[API ERROR] ${options.method || 'GET'} ${endpoint}`,
+        error
+      );
       throw error;
     }
   }
 
-  // Students
-  async getStudents() {
+  /* ============================
+     STUDENTS
+     ============================ */
+
+  getStudents() {
     return this.request('/students');
   }
 
-  async getStudent(id: number) {
+  getStudent(id: number) {
     return this.request(`/students/${id}`);
   }
 
-  async createStudent(data: any) {
+  createStudent(data: any) {
     return this.request('/students', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateStudent(id: number, data: any) {
+  updateStudent(id: number, data: any) {
     return this.request(`/students/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  async deleteStudent(id: number) {
+  deleteStudent(id: number) {
     return this.request(`/students/${id}`, {
       method: 'DELETE',
     });
   }
 
-  // Hostels
-  async getHostels() {
+  /* ============================
+     HOSTELS
+     ============================ */
+
+  getHostels() {
     return this.request('/hostels');
   }
 
-  async getHostel(id: number) {
+  getHostel(id: number) {
     return this.request(`/hostels/${id}`);
   }
 
-  // Rooms
-  async getRooms(hostelId?: number) {
-    const query = hostelId ? `?hostel_id=${hostelId}` : '';
-    return this.request(`/rooms${query}`);
+  /* ============================
+     ROOMS
+     ============================ */
+
+  getRooms(hostelId?: number) {
+    const q = hostelId ? `?hostel_id=${hostelId}` : '';
+    return this.request(`/rooms${q}`);
   }
 
-  async getRoom(id: number) {
+  getRoom(id: number) {
     return this.request(`/rooms/${id}`);
   }
 
-  // Applications
-  async getApplications(studentId?: number, status?: string) {
+  /* ============================
+     APPLICATIONS
+     ============================ */
+
+  getApplications(studentId?: number, status?: string) {
     const params = new URLSearchParams();
-    if (studentId) params.append('student_id', studentId.toString());
+    if (studentId) params.append('student_id', String(studentId));
     if (status) params.append('status', status);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request(`/applications${query}`);
+    return this.request(`/applications?${params.toString()}`);
   }
 
-  async getApplication(id: number) {
+  getApplication(id: number) {
     return this.request(`/applications/${id}`);
   }
 
-  async createApplication(data: any) {
-    // Generate application ID
-    const application_id = Date.now();
+  createApplication(data: any) {
+    // ❌ NO manual application_id
     return this.request('/applications', {
       method: 'POST',
-      body: JSON.stringify({ ...data, application_id }),
+      body: JSON.stringify(data),
     });
   }
 
-  async updateApplication(id: number, data: any) {
+  updateApplication(id: number, data: any) {
     return this.request(`/applications/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  async deleteApplication(id: number) {
+  deleteApplication(id: number) {
     return this.request(`/applications/${id}`, {
       method: 'DELETE',
     });
   }
 
-  // Allotments
-  async getAllotments(studentId?: number, status?: string) {
+  /* ============================
+     ALLOTMENTS
+     ============================ */
+
+  getAllotments(studentId?: number, status?: string) {
     const params = new URLSearchParams();
-    if (studentId) params.append('student_id', studentId.toString());
+    if (studentId) params.append('student_id', String(studentId));
     if (status) params.append('status', status);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request(`/allotments${query}`);
+    return this.request(`/allotments?${params.toString()}`);
   }
 
-  async getAllotment(id: number) {
+  getAllotment(id: number) {
     return this.request(`/allotments/${id}`);
   }
 
-  async createAllotment(data: any) {
+  createAllotment(data: any) {
     return this.request('/allotments', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async updateAllotment(id: number, data: any) {
+  updateAllotment(id: number, data: any) {
     return this.request(`/allotments/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  // Complaints
-  async getComplaints(studentId?: number, status?: string) {
-    const params = new URLSearchParams();
-    if (studentId) params.append('student_id', studentId.toString());
-    if (status) params.append('status', status);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request(`/complaints${query}`);
-  }
-
-  async getComplaint(id: number) {
-    return this.request(`/complaints/${id}`);
-  }
-
-  async createComplaint(data: any) {
-    // Generate complaint ID
-    const complaint_id = Date.now();
-    return this.request('/complaints', {
-      method: 'POST',
-      body: JSON.stringify({ ...data, complaint_id }),
+  deleteAllotment(id: number) {
+    return this.request(`/allotments/${id}`, {
+      method: 'DELETE',
     });
   }
 
-  async updateComplaint(id: number, data: any) {
+  /* ============================
+     COMPLAINTS
+     ============================ */
+
+  getComplaints(studentId?: number, status?: string) {
+    const params = new URLSearchParams();
+    if (studentId) params.append('student_id', String(studentId));
+    if (status) params.append('status', status);
+    return this.request(`/complaints?${params.toString()}`);
+  }
+
+  getComplaint(id: number) {
+    return this.request(`/complaints/${id}`);
+  }
+
+  createComplaint(data: any) {
+    return this.request('/complaints', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  updateComplaint(id: number, data: any) {
     return this.request(`/complaints/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  // Payments
-  async getPayments(studentId?: number, status?: string) {
+  /* ============================
+     PAYMENTS
+     ============================ */
+
+  getPayments(studentId?: number, status?: string) {
     const params = new URLSearchParams();
-    if (studentId) params.append('student_id', studentId.toString());
+    if (studentId) params.append('student_id', String(studentId));
     if (status) params.append('status', status);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request(`/payments${query}`);
+    return this.request(`/payments?${params.toString()}`);
   }
 
-  async getPayment(id: number) {
+  getPayment(id: number) {
     return this.request(`/payments/${id}`);
   }
 
-  async createPayment(data: any) {
-    // Generate payment ID
-    const payment_id = Date.now();
+  createPayment(data: any) {
     return this.request('/payments', {
       method: 'POST',
-      body: JSON.stringify({ ...data, payment_id }),
+      body: JSON.stringify(data),
     });
   }
 
-  async updatePayment(id: number, data: any) {
+  updatePayment(id: number, data: any) {
     return this.request(`/payments/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
-  // Fees
-  async getFees() {
+  /* ============================
+     FEES
+     ============================ */
+
+  getFees() {
     return this.request('/fees');
   }
 }

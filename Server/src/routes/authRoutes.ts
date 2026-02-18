@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { login, getProfile } from '../controllers/authController.js';
-import { authenticate } from '../middleware/auth.js';
+import { getProfile, syncUser } from '../controllers/authController.js';
+import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 
-router.post('/login', login);
-router.get('/profile', authenticate, getProfile);
+router.post('/sync', requireAuth, syncUser);
+router.get('/profile', requireAuth, getProfile);
 
 export default router;
