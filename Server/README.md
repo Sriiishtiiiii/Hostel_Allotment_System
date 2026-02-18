@@ -4,7 +4,7 @@ A RESTful API backend for the Hostel Allotment System built with Node.js, Expres
 
 ## Features
 
-- 🔐 JWT-based authentication
+- 🔐 Clerk-based authentication
 - 👥 Role-based access control (Student/Admin)
 - 🏠 Complete hostel management
 - 🚪 Room allocation and management
@@ -207,7 +207,7 @@ Error responses follow this format:
 
 ## Security Features
 
-- JWT-based authentication
+- Clerk-based authentication
 - Password hashing with bcrypt
 - Helmet for security headers
 - CORS configuration
