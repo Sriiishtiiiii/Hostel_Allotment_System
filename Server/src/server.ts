@@ -14,9 +14,7 @@ import hostelRoutes from './routes/hostelRoutes.js';
 import roomRoutes from './routes/roomRoutes.js';
 import applicationRoutes from './routes/applicationRoutes.js';
 import allotmentRoutes from './routes/allotmentRoutes.js';
-import paymentRoutes from './routes/paymentRoutes.js';
 import complaintRoutes from './routes/complaintRoutes.js';
-import feeRoutes from './routes/feeRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -114,9 +112,7 @@ app.get('/api', (req: Request, res: Response) => {
       rooms: '/api/rooms',
       applications: '/api/applications',
       allotments: '/api/allotments',
-      payments: '/api/payments',
-      complaints: '/api/complaints',
-      fees: '/api/fees'
+      complaints: '/api/complaints'
     },
     timestamp: new Date().toISOString()
   });
@@ -129,9 +125,7 @@ app.use('/api/hostels', hostelRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/allotments', allotmentRoutes);
-app.use('/api/payments', paymentRoutes);
 app.use('/api/complaints', complaintRoutes);
-app.use('/api/fees', feeRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

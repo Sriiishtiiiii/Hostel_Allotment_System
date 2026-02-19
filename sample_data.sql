@@ -1,94 +1,67 @@
 USE hostel_allotment;
 
 -- ==========================================
--- Sample Hostels
+-- Sample Hostels (2 to start with)
 -- ==========================================
-INSERT INTO Hostel (hostel_name, type, capacity) VALUES
-('Ramanujan Hostel', 'Boys', 200),
-('Saraswati Hostel', 'Girls', 150),
-('APJ Abdul Kalam Hostel', 'Boys', 180),
-('Indira Gandhi Hostel', 'Girls', 120);
+INSERT INTO Hostel (hostel_name, hostel_code, type, capacity, floors) VALUES
+('Himgiri Hostel',  'HH',  'Boys',  200, 4),
+('Saraswati Hostel','SH',  'Girls', 150, 3);
 
 -- ==========================================
--- Sample Students (Clerk Integrated)
--- clerk_id is required
+-- Sample Rooms — Himgiri (Boys), floors 1-4
 -- ==========================================
-INSERT INTO Student 
-(clerk_id, name, roll_no, department, academic_year, gender, phone, email, cgpa, is_admin)
-VALUES
-('clerk_001', 'Arjun Kumar', '21CS001', 'Computer Science', 2021, 'Male', '9876543210', 'arjun@college.edu', 8.5, FALSE),
-('clerk_002', 'Priya Sharma', '21CS002', 'Computer Science', 2021, 'Female', '9876543211', 'priya@college.edu', 9.2, FALSE),
-('clerk_003', 'Rahul Singh', '21ME003', 'Mechanical', 2021, 'Male', '9876543212', 'rahul@college.edu', 7.8, FALSE),
-('clerk_004', 'Sneha Patel', '21EC004', 'Electronics', 2021, 'Female', '9876543213', 'sneha@college.edu', 8.9, FALSE);
+INSERT INTO Room (hostel_id, room_number, floor, room_type, capacity) VALUES
+(1, '101', 1, 'Single', 1),
+(1, '102', 1, 'Double', 2),
+(1, '103', 1, 'Double', 2),
+(1, '104', 1, 'Triple', 3),
+(1, '105', 1, 'Single', 1),
+(1, '201', 2, 'Single', 1),
+(1, '202', 2, 'Double', 2),
+(1, '203', 2, 'Double', 2),
+(1, '204', 2, 'Triple', 3),
+(1, '205', 2, 'Single', 1),
+(1, '301', 3, 'Single', 1),
+(1, '302', 3, 'Double', 2),
+(1, '303', 3, 'Double', 2),
+(1, '304', 3, 'Triple', 3),
+(1, '401', 4, 'Single', 1),
+(1, '402', 4, 'Double', 2),
+(1, '403', 4, 'Triple', 3);
 
 -- ==========================================
--- Sample Rooms
+-- Sample Rooms — Saraswati (Girls), floors 1-3
 -- ==========================================
-INSERT INTO Room (hostel_id, room_number, room_type, capacity) VALUES
-(1, 'A101', 'Single', 1),
-(1, 'A102', 'Double', 2),
-(1, 'A103', 'Triple', 3),
-(2, 'B201', 'Single', 1),
-(2, 'B202', 'Double', 2),
-(3, 'C301', 'Single', 1),
-(4, 'D401', 'Double', 2);
+INSERT INTO Room (hostel_id, room_number, floor, room_type, capacity) VALUES
+(2, '101', 1, 'Single', 1),
+(2, '102', 1, 'Double', 2),
+(2, '103', 1, 'Double', 2),
+(2, '104', 1, 'Triple', 3),
+(2, '201', 2, 'Single', 1),
+(2, '202', 2, 'Double', 2),
+(2, '203', 2, 'Double', 2),
+(2, '204', 2, 'Triple', 3),
+(2, '301', 3, 'Double', 2),
+(2, '302', 3, 'Double', 2),
+(2, '303', 3, 'Triple', 3);
 
 -- ==========================================
--- Sample Fees
+-- Sample Students
+-- password_hash = bcrypt of 'Password@123'
+-- email_verified = TRUE for dev convenience
 -- ==========================================
-INSERT INTO Fee (hostel_id, academic_year, amount) VALUES
-(1, 2021, 50000),
-(2, 2021, 45000),
-(3, 2021, 48000),
-(4, 2021, 42000);
-
--- ==========================================
--- Sample Applications
--- Status ENUM: 'Pending', 'Approved', 'Rejected'
--- ==========================================
-INSERT INTO Application 
-(student_id, preferred_hostel_id, preferred_room_type, applied_date, status)
-VALUES
-(1, 1, 'Single', '2024-01-15 10:30:00', 'Approved'),
-(2, 2, 'Double', '2024-01-16 11:15:00', 'Pending'),
-(3, 3, 'Single', '2024-01-17 09:45:00', 'Pending'),
-(4, 4, 'Double', '2024-01-18 14:20:00', 'Approved');
-
--- ==========================================
--- Sample Allotments
--- Status ENUM: 'Active', 'Vacated'
--- ==========================================
-INSERT INTO Allotment 
-(student_id, room_id, allotment_date, status, vacated_date, reason)
-VALUES
-(1, 1, '2024-01-20 15:00:00', 'Active', NULL, NULL),
-(4, 7, '2024-01-22 16:30:00', 'Active', NULL, NULL);
-
--- ==========================================
--- Sample Payments
--- Mode ENUM: 'UPI', 'Card', 'Cash', 'NetBanking'
--- Status ENUM: 'Pending', 'Completed', 'Failed'
--- ==========================================
-INSERT INTO Payment 
-(student_id, fee_id, payment_date, mode, status)
-VALUES
-(1, 1, '2024-01-25 12:00:00', 'UPI', 'Completed'),
-(2, 2, NULL, 'Card', 'Pending'),
-(4, 4, '2024-01-26 10:30:00', 'NetBanking', 'Completed');
-
--- ==========================================
--- Sample Complaints
--- Category ENUM: 'Electrical', 'Plumbing', 'Cleaning', 'Other'
--- Status ENUM: 'Open', 'In Progress', 'Resolved'
--- ==========================================
-INSERT INTO Complaint 
-(student_id, room_id, category, description, raised_date, status)
-VALUES
-(1, 1, 'Electrical', 'AC not working properly', '2024-01-28 09:00:00', 'Open'),
-(4, 7, 'Electrical', 'Power outlet not functioning', '2024-01-27 14:30:00', 'In Progress');
-
--- ==========================================
--- Sample Admin
--- ==========================================
-INSERT INTO Admin (name, role, phone, email, hostel_id) VALUES
-('Dr. Rajesh Kumar', 'Warden', '9999999999', 'admin@college.edu', 1);
+INSERT INTO Student (name, roll_no, email, department, academic_year, gender, cgpa,
+                     is_admin, password_hash, email_verified) VALUES
+('Admin User',    'ADMIN001', 'admin@nith.ac.in',  'Administration',  2024, 'Male',   NULL,
+ TRUE,  '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4oZ6Wf7G.K', TRUE),
+('Arjun Kumar',   '21CS001',  'arjun@nith.ac.in',  'Computer Science', 2021, 'Male',   8.90,
+ FALSE, '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4oZ6Wf7G.K', TRUE),
+('Rahul Singh',   '21ME003',  'rahul@nith.ac.in',  'Mechanical',       2021, 'Male',   7.80,
+ FALSE, '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4oZ6Wf7G.K', TRUE),
+('Priya Sharma',  '21CS002',  'priya@nith.ac.in',  'Computer Science', 2021, 'Female', 9.20,
+ FALSE, '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4oZ6Wf7G.K', TRUE),
+('Sneha Patel',   '21EC004',  'sneha@nith.ac.in',  'Electronics',      2021, 'Female', 8.50,
+ FALSE, '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4oZ6Wf7G.K', TRUE),
+('Vikram Thakur', '21CE005',  'vikram@nith.ac.in', 'Civil',            2021, 'Male',   8.10,
+ FALSE, '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4oZ6Wf7G.K', TRUE);
+-- All sample passwords: Password@123

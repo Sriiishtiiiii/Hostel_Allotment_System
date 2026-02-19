@@ -50,23 +50,6 @@ export interface Allotment {
   reason?: string;
 }
 
-export interface Fee {
-  fee_id: number;
-  hostel_id: number;
-  academic_year: number;
-  amount: number;
-}
-
-export interface Payment {
-  payment_id: number;
-  student_id: number;
-  fee_id: number;
-  allotment_id?: number;
-  payment_date: Date;
-  mode: 'Online' | 'Cash' | 'Cheque' | 'UPI';
-  status: 'Pending' | 'Completed' | 'Failed';
-  transaction_id?: string;
-}
 
 export interface Complaint {
   complaint_id: number;
