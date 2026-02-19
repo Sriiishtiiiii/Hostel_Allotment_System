@@ -7,7 +7,7 @@ import { ResponseHelper, logRequest, logSuccess, logError } from '../utils/respo
  * GET /api/hostels
  */
 export const getAllHostels = async (
-  req: Request,
+  _req: Request,
   res: Response
 ): Promise<Response> => {
   logRequest('GET', '/api/hostels');

@@ -8,7 +8,7 @@ import {
 } from '../services/emailService.js';
 
 // GET /api/rounds  (admin)
-export const listRounds = async (req: AuthRequest, res: Response): Promise<void> => {
+export const listRounds = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const [rounds] = await pool.execute(`
       SELECT

@@ -1,12 +1,15 @@
 import express from 'express';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import {
   getComplaints,
-  createComplaint
+  createComplaint,
+  updateComplaint,
 } from '../controllers/complaintController.js';
 
 const router = express.Router();
 
-router.get('/', getComplaints);
-router.post('/', createComplaint);
+router.get('/', requireAuth, getComplaints);
+router.post('/', requireAuth, createComplaint);
+router.put('/:id', requireAuth, requireAdmin, updateComplaint);
 
 export default router;

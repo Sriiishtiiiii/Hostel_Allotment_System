@@ -1,203 +1,223 @@
-import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import {
-  Home,
-  AlertCircle,
-  Clock,
-  CheckCircle,
-  MapPin,
-  Grid2x2,
-} from "lucide-react";
+import { Home, AlertCircle, Clock, CheckCircle, MapPin, Grid2x2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { api } from "@/lib/api";
+
+interface RoundStatus {
+  inActiveRound: boolean;
+  round: {
+    round_id: number;
+    round_number: number;
+    status: string;
+    deadline: string | null;
+    has_submitted: boolean;
+    pref_status: string | null;
+  } | null;
+  currentAllotment: {
+    allotment_id: number;
+    room_number: string;
+    floor: number;
+    room_type: string;
+    hostel_name: string;
+    hostel_code: string;
+  } | null;
+}
 
 const StudentDashboard = () => {
   const { user } = useAuth();
-  const [applicationStatus] = useState("pending"); // Can be: 'not_applied', 'pending', 'approved', 'rejected'
-  const [roomStatus] = useState("not_allotted"); // Can be: 'not_allotted', 'allotted', 'occupied'
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "approved":
-        return "bg-green-100 text-green-800";
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "rejected":
-        return "bg-red-100 text-red-800";
-      case "allotted":
-        return "bg-blue-100 text-blue-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
+  const { data: roundStatus, isLoading } = useQuery<RoundStatus>({
+    queryKey: ["my-round-status"],
+    queryFn: () => api.getMyRoundStatus() as Promise<RoundStatus>,
+  });
+
+  const allotment = roundStatus?.currentAllotment;
+  const round = roundStatus?.round;
+
+  const getRoundBadge = () => {
+    if (!round) return <Badge variant="secondary">No Round Assigned</Badge>;
+    if (round.status === "Active")
+      return <Badge className="bg-green-100 text-green-800">Round {round.round_number} — Active</Badge>;
+    if (round.status === "Upcoming")
+      return <Badge className="bg-blue-100 text-blue-800">Round {round.round_number} — Upcoming</Badge>;
+    return <Badge variant="secondary">Round {round.round_number} — {round.status}</Badge>;
   };
 
-  const applicationProgress =
-    applicationStatus === "not_applied"
-      ? 0
-      : applicationStatus === "pending"
-        ? 50
-        : applicationStatus === "approved"
-          ? 100
-          : 25;
-
   return (
-    <DashboardLayout requiredRole="student">
+    <DashboardLayout>
       <div className="space-y-8">
         {/* Welcome Header */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">
-                Welcome back, {user?.name?.split(' ')[0] || "Student"}!
-              </h1>
-              <p className="mt-2 opacity-90">
-                Track your hostel application and manage your accommodation
-              </p>
-            </div>
-            <div className="hidden md:flex items-center space-x-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold">2024</div>
-                <div className="text-sm opacity-75">Academic Year</div>
-              </div>
-            </div>
-          </div>
+          <h1 className="text-3xl font-bold">
+            Welcome back, {user?.name?.split(" ")[0] || "Student"}!
+          </h1>
+          <p className="mt-2 opacity-90">
+            Track your hostel allotment and room selection status
+          </p>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Allotment Status */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Application Status
-              </CardTitle>
-              <FileText className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-2xl font-bold">
-                    {applicationStatus === "not_applied"
-                      ? "Not Applied"
-                      : applicationStatus === "pending"
-                        ? "Pending"
-                        : applicationStatus === "approved"
-                          ? "Approved"
-                          : "Rejected"}
-                  </div>
-                  <Progress value={applicationProgress} className="mt-2" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Room Allotment
-              </CardTitle>
+              <CardTitle className="text-sm font-medium">Room Allotment</CardTitle>
               <Home className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {roomStatus === "allotted" ? "Room A-204" : "Not Allotted"}
+              {isLoading ? (
+                <div className="h-8 bg-muted animate-pulse rounded" />
+              ) : allotment ? (
+                <>
+                  <div className="text-2xl font-bold">{allotment.room_number}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {allotment.hostel_name}, Floor {allotment.floor}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="text-xl font-bold text-muted-foreground">Not Allotted</div>
+                  <p className="text-xs text-muted-foreground mt-1">Pending allotment</p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Round / Batch Status */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Batch Status</CardTitle>
+              <Clock className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="h-8 bg-muted animate-pulse rounded" />
+              ) : (
+                <>
+                  <div className="mt-1">{getRoundBadge()}</div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {!round
+                      ? "Admin will assign you to a batch"
+                      : round.status === "Active" && !round.has_submitted
+                      ? "Select your room preferences now!"
+                      : round.status === "Active" && round.has_submitted
+                      ? "Preferences submitted — awaiting processing"
+                      : "Waiting for batch activation"}
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* CGPA */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Your CGPA</CardTitle>
+              <CheckCircle className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-blue-700">
+                {(user as any)?.cgpa ?? "—"}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {roomStatus === "allotted"
-                  ? "Ramanujan Hostel"
-                  : "Complete application first"}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Select Room
-              </CardTitle>
-              <Grid2x2 className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <Link to="/student/select-room">
-                <Button size="sm" className="mt-1 w-full">Open</Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Complaints</CardTitle>
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">2 Open</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                1 resolved this month
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">Higher CGPA = earlier batch</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Main Content Grid */}
+        {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Room Selection CTA */}
+          {/* Room Selection status card */}
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Grid2x2 className="w-5 h-5" />
-                Room Selection
+                Allotment Progress
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                {/* Allotment row */}
+                <div
+                  className={`flex items-center justify-between p-4 rounded-lg ${
+                    allotment ? "bg-green-50" : "bg-gray-100"
+                  }`}
+                >
                   <div className="flex items-center gap-3">
-                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                    <Home
+                      className={`w-5 h-5 ${allotment ? "text-green-600" : "text-gray-400"}`}
+                    />
                     <div>
-                      <p className="font-medium">Profile Ready</p>
-                      <p className="text-sm text-gray-600">Account verified</p>
+                      <p className="font-medium">Room Allotment</p>
+                      <p className="text-sm text-gray-600">
+                        {allotment
+                          ? `${allotment.hostel_name} — Room ${allotment.room_number} (Floor ${allotment.floor})`
+                          : "Not yet allotted"}
+                      </p>
                     </div>
                   </div>
-                  <Badge className="bg-green-100 text-green-800">Done</Badge>
+                  <Badge
+                    className={
+                      allotment ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700"
+                    }
+                  >
+                    {allotment ? "Allotted" : "Pending"}
+                  </Badge>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
+                {/* Batch row */}
+                <div
+                  className={`flex items-center justify-between p-4 rounded-lg ${
+                    round?.status === "Active"
+                      ? "bg-green-50"
+                      : round
+                      ? "bg-blue-50"
+                      : "bg-gray-100"
+                  }`}
+                >
                   <div className="flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-gray-400" />
+                    <Clock
+                      className={`w-5 h-5 ${
+                        round?.status === "Active"
+                          ? "text-green-600"
+                          : round
+                          ? "text-blue-500"
+                          : "text-gray-400"
+                      }`}
+                    />
                     <div>
                       <p className="font-medium">Batch Assignment</p>
                       <p className="text-sm text-gray-600">
-                        Admin will assign you to a round based on CGPA
+                        {!round
+                          ? "Admin will assign you to a round based on CGPA"
+                          : round.status === "Active"
+                          ? round.has_submitted
+                            ? "Preferences submitted — awaiting processing"
+                            : "Your round is active! Select your room now."
+                          : `Round ${round.round_number} assigned — waiting for activation`}
                       </p>
                     </div>
                   </div>
-                  <Badge variant="secondary">Waiting</Badge>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Home className="w-5 h-5 text-gray-400" />
-                    <div>
-                      <p className="font-medium">Room Allocation</p>
-                      <p className="text-sm text-gray-600">
-                        Select preferences when your round is active
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary">Pending</Badge>
+                  <Badge variant={round?.status === "Active" ? "default" : "secondary"}>
+                    {!round ? "Not Assigned" : round.status}
+                  </Badge>
                 </div>
 
                 <Link to="/student/select-room">
-                  <Button className="w-full mt-4">Go to Room Selection</Button>
+                  <Button
+                    className="w-full mt-2"
+                    variant={
+                      round?.status === "Active" && !round.has_submitted ? "default" : "outline"
+                    }
+                  >
+                    {round?.status === "Active" && !round.has_submitted
+                      ? "Select Room Now"
+                      : "View Room Selection"}
+                  </Button>
                 </Link>
               </div>
             </CardContent>
@@ -207,7 +227,6 @@ const StudentDashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>Common tasks and shortcuts</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <Link to="/student/select-room">
@@ -216,102 +235,18 @@ const StudentDashboard = () => {
                   Select Room
                 </Button>
               </Link>
-
+              <Link to="/student/allotment">
+                <Button variant="outline" className="w-full justify-start mt-2">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  View Allotment
+                </Button>
+              </Link>
               <Link to="/student/complaints">
-                <Button variant="outline" className="w-full justify-start">
+                <Button variant="outline" className="w-full justify-start mt-2">
                   <AlertCircle className="w-4 h-4 mr-2" />
                   Lodge Complaint
                 </Button>
               </Link>
-
-              <Link to="/student/allotment">
-                <Button variant="outline" className="w-full justify-start">
-                  <MapPin className="w-4 h-4 mr-2" />
-                  View Room Details
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Activity & Announcements */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-                  <FileText className="w-5 h-5 text-blue-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-sm">Application Submitted</p>
-                    <p className="text-xs text-gray-600">
-                      Your hostel application has been submitted for review
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">2 days ago</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-sm">Document Verified</p>
-                    <p className="text-xs text-gray-600">
-                      Your academic documents have been verified
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">5 days ago</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg">
-                  <CreditCard className="w-5 h-5 text-orange-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-sm">Fee Payment Due</p>
-                    <p className="text-xs text-gray-600">
-                      Hostel fee payment due by March 15
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">1 week ago</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Announcements</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="p-4 bg-red-50 border-l-4 border-red-500">
-                  <h4 className="font-medium text-red-800">Important Notice</h4>
-                  <p className="text-sm text-red-700 mt-1">
-                    Last date for hostel fee payment is March 15, 2024. Late
-                    fees will be applicable after the deadline.
-                  </p>
-                </div>
-
-                <div className="p-4 bg-blue-50 border-l-4 border-blue-500">
-                  <h4 className="font-medium text-blue-800">
-                    Room Allocation Update
-                  </h4>
-                  <p className="text-sm text-blue-700 mt-1">
-                    Room allocation results will be announced on March 10, 2024.
-                    Check your dashboard regularly.
-                  </p>
-                </div>
-
-                <div className="p-4 bg-green-50 border-l-4 border-green-500">
-                  <h4 className="font-medium text-green-800">
-                    Mess Menu Updated
-                  </h4>
-                  <p className="text-sm text-green-700 mt-1">
-                    New mess menu for the month of March has been updated. Check
-                    the hostel notice board.
-                  </p>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

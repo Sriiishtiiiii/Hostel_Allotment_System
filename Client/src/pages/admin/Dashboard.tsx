@@ -1,233 +1,229 @@
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { StatCard } from '@/components/ui/StatCard';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { dashboardStats, applications, students, complaints, hostels, allRooms } from '@/data/mockData';
-import { 
-  Users, 
-  FileText, 
-  Building2, 
-  CreditCard, 
+import { useQuery } from "@tanstack/react-query";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Users,
   MessageSquare,
-  TrendingUp,
-  Clock,
+  Layers,
   CheckCircle,
-  XCircle,
+  Upload,
+  AlertCircle,
   ArrowRight,
-  DoorOpen
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { api } from "@/lib/api";
 
-export const AdminDashboard = () => {
-  const recentApplications = applications.slice(0, 5);
-  const openComplaints = complaints.filter(c => c.status === 'Open' || c.status === 'In Progress');
+interface Round {
+  round_id: number;
+  round_number: number;
+  academic_year: number;
+  batch_size: number;
+  status: "Upcoming" | "Active" | "Completed";
+  total_students: number;
+  submitted_count: number;
+  allotted_count: number;
+  activated_at: string | null;
+  processed_at: string | null;
+}
 
-  const totalRooms = allRooms.length;
-  const occupiedRooms = allRooms.filter(r => r.occupants.length >= r.capacity).length;
-  const availableRooms = allRooms.filter(r => r.occupants.length < r.capacity && !r.isReserved).length;
+const AdminDashboard = () => {
+  const { data: students = [] } = useQuery<any[]>({
+    queryKey: ["students"],
+    queryFn: () => api.getStudents() as Promise<any[]>,
+  });
+
+  const { data: rounds = [] } = useQuery<Round[]>({
+    queryKey: ["rounds"],
+    queryFn: () => api.getRounds() as Promise<Round[]>,
+  });
+
+  const { data: complaints = [] } = useQuery<any[]>({
+    queryKey: ["complaints"],
+    queryFn: () => api.getComplaints() as Promise<any[]>,
+  });
+
+  const activeRound = rounds.find((r) => r.status === "Active");
+  const totalAllotted = rounds.reduce((sum, r) => sum + (Number(r.allotted_count) || 0), 0);
+  const openComplaints = complaints.filter(
+    (c) => c.status === "Open" || c.status === "In Progress"
+  ).length;
+
+  const getRoundStatusColor = (status: string) => {
+    if (status === "Active") return "bg-green-100 text-green-800";
+    if (status === "Upcoming") return "bg-blue-100 text-blue-800";
+    return "bg-gray-100 text-gray-700";
+  };
 
   return (
-    <DashboardLayout requiredRole="admin">
-      <div className="space-y-8 animate-fade-in">
+    <DashboardLayout>
+      <div className="space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="font-display text-3xl font-bold mb-1">Admin Dashboard</h1>
-          <p className="text-muted-foreground">
-            Overview of hostel management system
-          </p>
+        <div className="bg-gradient-to-r from-indigo-600 to-blue-600 rounded-lg p-6 text-white">
+          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <p className="mt-2 opacity-90">NIT Hamirpur Hostel Allotment System</p>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Students"
-            value={dashboardStats.totalStudents}
-            subtitle="+12 this month"
-            icon={Users}
-            variant="primary"
-            trend={{ value: 8, isPositive: true }}
-          />
-          <StatCard
-            title="Pending Applications"
-            value={dashboardStats.pendingApplications}
-            subtitle="Requires action"
-            icon={FileText}
-            variant="warning"
-          />
-          <StatCard
-            title="Room Occupancy"
-            value={`${Math.round((occupiedRooms / totalRooms) * 100)}%`}
-            subtitle={`${occupiedRooms}/${totalRooms} rooms`}
-            icon={DoorOpen}
-            variant="success"
-          />
-          <StatCard
-            title="Open Complaints"
-            value={openComplaints.length}
-            subtitle="Needs attention"
-            icon={MessageSquare}
-            variant="destructive"
-          />
-        </div>
-
-        {/* Room Overview */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {hostels.slice(0, 3).map((hostel) => {
-            const hostelRooms = allRooms.filter(r => r.hostelId === hostel.id);
-            const occupied = hostelRooms.filter(r => r.occupants.length >= r.capacity).length;
-            const available = hostelRooms.filter(r => r.occupants.length < r.capacity && !r.isReserved).length;
-            const occupancyRate = Math.round((occupied / hostelRooms.length) * 100);
-
-            return (
-              <div key={hostel.id} className="bg-card border border-border rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">{hostel.name}</h3>
-                    <p className="text-xs text-muted-foreground">{hostel.type} Hostel</p>
-                  </div>
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Students</p>
+                  <p className="text-3xl font-bold mt-1">{students.length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Imported via CSV</p>
                 </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Occupancy</span>
-                    <span className="font-semibold">{occupancyRate}%</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary rounded-full transition-all duration-500"
-                      style={{ width: `${occupancyRate}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{occupied} occupied</span>
-                    <span>{available} available</span>
-                  </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <Users className="w-6 h-6 text-blue-600" />
                 </div>
               </div>
-            );
-          })}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Allotted</p>
+                  <p className="text-3xl font-bold mt-1">{totalAllotted}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {students.length > 0
+                      ? `${Math.round((totalAllotted / students.length) * 100)}% of students`
+                      : "Across all rounds"}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Active Round</p>
+                  <p className="text-3xl font-bold mt-1">
+                    {activeRound ? `#${activeRound.round_number}` : "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {activeRound
+                      ? `${activeRound.submitted_count}/${activeRound.total_students} submitted`
+                      : "No active round"}
+                  </p>
+                </div>
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <Layers className="w-6 h-6 text-purple-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Open Complaints</p>
+                  <p className="text-3xl font-bold mt-1">{openComplaints}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Needs attention</p>
+                </div>
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                  <MessageSquare className="w-6 h-6 text-red-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Applications */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <div className="p-6 border-b border-border flex items-center justify-between">
-              <h2 className="font-display font-semibold text-lg">Recent Applications</h2>
+        {/* Rounds Table + Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Rounds */}
+          <Card className="lg:col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle>Allotment Rounds</CardTitle>
               <Button variant="ghost" size="sm" asChild>
-                <Link to="/admin/applications">
-                  View All
-                  <ArrowRight className="w-4 h-4 ml-1" />
+                <Link to="/admin/rounds">
+                  View All <ArrowRight className="w-4 h-4 ml-1" />
                 </Link>
               </Button>
-            </div>
-            <div className="divide-y divide-border">
-              {recentApplications.map((app) => {
-                const student = students.find(s => s.id === app.studentId);
-                const hostel = hostels.find(h => h.id === app.preferredHostelId);
-                
-                return (
-                  <div key={app.id} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                        <span className="text-sm font-semibold">
-                          {student?.name.charAt(0)}
-                        </span>
-                      </div>
+            </CardHeader>
+            <CardContent>
+              {rounds.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Layers className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                  <p className="text-sm">No rounds created yet</p>
+                  <Link to="/admin/rounds">
+                    <Button size="sm" className="mt-3">Create First Round</Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {rounds.slice(0, 5).map((round) => (
+                    <div
+                      key={round.round_id}
+                      className="flex items-center justify-between p-3 bg-muted/40 rounded-lg"
+                    >
                       <div>
-                        <p className="font-medium text-sm">{student?.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {hostel?.name} • {app.preferredRoomType}
+                        <p className="font-medium text-sm">
+                          Round #{round.round_number}
+                          <span className="text-muted-foreground font-normal ml-2">
+                            ({round.academic_year})
+                          </span>
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {round.total_students} students ·{" "}
+                          {round.submitted_count} submitted ·{" "}
+                          {round.allotted_count} allotted
                         </p>
                       </div>
+                      <Badge className={getRoundStatusColor(round.status)}>
+                        {round.status}
+                      </Badge>
                     </div>
-                    <StatusBadge status={app.status.toLowerCase()} />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-          {/* Open Complaints */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <div className="p-6 border-b border-border flex items-center justify-between">
-              <h2 className="font-display font-semibold text-lg">Open Complaints</h2>
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/admin/complaints">
-                  View All
-                  <ArrowRight className="w-4 h-4 ml-1" />
-                </Link>
-              </Button>
-            </div>
-            <div className="divide-y divide-border">
-              {openComplaints.slice(0, 5).map((complaint) => {
-                const student = students.find(s => s.id === complaint.studentId);
-                
-                return (
-                  <div key={complaint.id} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        complaint.status === 'Open' ? 'bg-info/10' : 'bg-warning/10'
-                      }`}>
-                        <MessageSquare className={`w-5 h-5 ${
-                          complaint.status === 'Open' ? 'text-info' : 'text-warning'
-                        }`} />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{complaint.category}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-1">
-                          {complaint.description}
-                        </p>
-                      </div>
-                    </div>
-                    <StatusBadge status={complaint.status.toLowerCase().replace(' ', '-')} />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link
-            to="/admin/applications"
-            className="p-6 bg-warning/5 border border-warning/20 rounded-xl hover:border-warning/50 transition-all group"
-          >
-            <Clock className="w-8 h-8 text-warning mb-4" />
-            <h3 className="font-semibold mb-1 group-hover:text-warning transition-colors">
-              Review Applications
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {applications.filter(a => a.status === 'Pending').length} pending reviews
-            </p>
-          </Link>
-          <Link
-            to="/admin/allotment"
-            className="p-6 bg-primary/5 border border-primary/20 rounded-xl hover:border-primary/50 transition-all group"
-          >
-            <DoorOpen className="w-8 h-8 text-primary mb-4" />
-            <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors">
-              Allot Rooms
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {availableRooms} rooms available
-            </p>
-          </Link>
-          <Link
-            to="/admin/complaints"
-            className="p-6 bg-destructive/5 border border-destructive/20 rounded-xl hover:border-destructive/50 transition-all group"
-          >
-            <MessageSquare className="w-8 h-8 text-destructive mb-4" />
-            <h3 className="font-semibold mb-1 group-hover:text-destructive transition-colors">
-              Resolve Complaints
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {openComplaints.length} open complaints
-            </p>
-          </Link>
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Link to="/admin/csv">
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg hover:border-blue-400 transition-colors cursor-pointer">
+                  <Upload className="w-6 h-6 text-blue-600 mb-2" />
+                  <p className="font-semibold text-sm">Upload CSV</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Import student result data
+                  </p>
+                </div>
+              </Link>
+              <Link to="/admin/rounds">
+                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg hover:border-purple-400 transition-colors cursor-pointer mt-3">
+                  <Layers className="w-6 h-6 text-purple-600 mb-2" />
+                  <p className="font-semibold text-sm">Manage Rounds</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Create, activate, process batches
+                  </p>
+                </div>
+              </Link>
+              <Link to="/admin/complaints">
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg hover:border-red-400 transition-colors cursor-pointer mt-3">
+                  <AlertCircle className="w-6 h-6 text-red-600 mb-2" />
+                  <p className="font-semibold text-sm">Complaints</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {openComplaints} open · track and resolve
+                  </p>
+                </div>
+              </Link>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </DashboardLayout>

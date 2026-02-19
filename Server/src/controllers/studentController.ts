@@ -8,14 +8,14 @@ import { ResponseHelper, logRequest, logSuccess, logError } from '../utils/respo
  * Admin-only route (should be protected later)
  */
 export const getStudents = async (
-  req: Request,
+  _req: Request,
   res: Response
 ): Promise<Response> => {
   logRequest('GET', '/api/students');
 
   try {
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT student_id, clerk_id, name, roll_no, department,
+      `SELECT student_id, name, roll_no, department,
               academic_year, gender, phone, email, cgpa,
               is_admin, created_at
        FROM Student

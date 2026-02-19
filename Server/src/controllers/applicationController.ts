@@ -6,7 +6,7 @@ import { ResponseHelper } from '../utils/response.js';
 /**
  * GET applications
  */
-export const getApplications = async (req: Request, res: Response): Promise<Response> => {
+export const getApplications = async (_req: Request, res: Response): Promise<Response> => {
   try {
     const [rows] = await pool.execute<RowDataPacket[]>(
       `SELECT a.*, s.name AS student_name,

@@ -142,13 +142,13 @@ CREATE INDEX idx_pref_round   ON RoomPreference(round_id);
 CREATE TABLE Complaint (
     complaint_id INT AUTO_INCREMENT PRIMARY KEY,
     student_id   INT NOT NULL,
-    room_id      INT NOT NULL,
-    category     ENUM('Electrical', 'Plumbing', 'Cleaning', 'Other') NOT NULL,
+    room_id      INT NULL,
+    category     ENUM('Maintenance', 'Electrical', 'Plumbing', 'Internet', 'Other') NOT NULL,
     description  TEXT NOT NULL,
     raised_date  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    status       ENUM('Open', 'In Progress', 'Resolved') DEFAULT 'Open',
+    status       ENUM('Open', 'In Progress', 'Resolved', 'Closed') DEFAULT 'Open',
     FOREIGN KEY (student_id) REFERENCES Student(student_id) ON DELETE CASCADE,
-    FOREIGN KEY (room_id)    REFERENCES Room(room_id)    ON DELETE CASCADE
+    FOREIGN KEY (room_id)    REFERENCES Room(room_id)    ON DELETE SET NULL
 );
 
 CREATE INDEX idx_complaint_student ON Complaint(student_id);

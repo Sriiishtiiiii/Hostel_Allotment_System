@@ -30,10 +30,6 @@ interface ParsedStudent {
 }
 
 const VALID_GENDERS = ['male', 'female', 'other'];
-const VALID_DEPARTMENTS = [
-  'computer science', 'electronics', 'electrical', 'mechanical',
-  'civil', 'chemical', 'architecture', 'physics', 'mathematics', 'other'
-];
 
 function validateRow(row: CsvRow, index: number): { student: ParsedStudent | null; error: string | null } {
   const roll_no = row.roll_no?.trim();

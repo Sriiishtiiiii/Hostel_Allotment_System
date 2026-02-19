@@ -94,7 +94,7 @@ io.on('connection', (socket) => {
 });
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
@@ -104,7 +104,7 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // API info endpoint
-app.get('/api', (req: Request, res: Response) => {
+app.get('/api', (_req: Request, res: Response) => {
   res.json({
     message: 'Hostel Allotment System API',
     version: '1.0.0',
@@ -134,12 +134,12 @@ app.use('/api/rounds', roundRoutes);
 app.use('/api/preferences', preferenceRoutes);
 
 // 404 handler
-app.use((req: Request, res: Response) => {
+app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
 // Error handler
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   console.error('🚨 Unhandled Error:', {
     message: err.message,
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
@@ -167,7 +167,7 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     });
   }
   
-  res.status(500).json({ 
+  return res.status(500).json({
     success: false,
     message: 'Internal server error',
     error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong',
