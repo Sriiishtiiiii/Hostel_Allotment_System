@@ -26,6 +26,8 @@ import StudentComplaints from "./pages/student/Complaints";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminApplications from "./pages/admin/Applications";
 import AdminComplaints from "./pages/admin/Complaints";
+import AdminCsvUpload from "./pages/admin/CsvUpload";
+import AdminRounds from "./pages/admin/Rounds";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -78,6 +80,8 @@ function AppRoutes() {
       <Route path="/admin/dashboard" element={<ProtectedRoute adminOnly><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/applications" element={<ProtectedRoute adminOnly><AdminApplications /></ProtectedRoute>} />
       <Route path="/admin/complaints" element={<ProtectedRoute adminOnly><AdminComplaints /></ProtectedRoute>} />
+      <Route path="/admin/csv" element={<ProtectedRoute adminOnly><AdminCsvUpload /></ProtectedRoute>} />
+      <Route path="/admin/rounds" element={<ProtectedRoute adminOnly><AdminRounds /></ProtectedRoute>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

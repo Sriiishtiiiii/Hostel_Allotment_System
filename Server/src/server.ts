@@ -16,6 +16,7 @@ import applicationRoutes from './routes/applicationRoutes.js';
 import allotmentRoutes from './routes/allotmentRoutes.js';
 import complaintRoutes from './routes/complaintRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import roundRoutes from './routes/roundRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -128,6 +129,7 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/allotments', allotmentRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/rounds', roundRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
