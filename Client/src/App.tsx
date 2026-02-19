@@ -21,6 +21,7 @@ import ForgotPassword from "./pages/auth/ForgotPassword";
 import StudentDashboard from "./pages/student/Dashboard";
 import StudentAllotment from "./pages/student/Allotment";
 import StudentComplaints from "./pages/student/Complaints";
+import StudentRoomSelection from "./pages/student/RoomSelection";
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard";
@@ -73,6 +74,7 @@ function AppRoutes() {
 
       {/* Student */}
       <Route path="/student/dashboard" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+      <Route path="/student/select-room" element={<ProtectedRoute><StudentRoomSelection /></ProtectedRoute>} />
       <Route path="/student/allotment" element={<ProtectedRoute><StudentAllotment /></ProtectedRoute>} />
       <Route path="/student/complaints" element={<ProtectedRoute><StudentComplaints /></ProtectedRoute>} />
 

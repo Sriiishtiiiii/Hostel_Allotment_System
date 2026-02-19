@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useUser } from "@clerk/clerk-react";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Card,
   CardContent,
@@ -13,21 +13,16 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   Home,
-  FileText,
-  CreditCard,
   AlertCircle,
   Clock,
   CheckCircle,
-  User,
-  Calendar,
   MapPin,
-  Bell,
-  TrendingUp,
+  Grid2x2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const StudentDashboard = () => {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [applicationStatus] = useState("pending"); // Can be: 'not_applied', 'pending', 'approved', 'rejected'
   const [roomStatus] = useState("not_allotted"); // Can be: 'not_allotted', 'allotted', 'occupied'
 
@@ -63,7 +58,7 @@ const StudentDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">
-                Welcome back, {user?.firstName || "Student"}! 👋
+                Welcome back, {user?.name?.split(' ')[0] || "Student"}!
               </h1>
               <p className="mt-2 opacity-90">
                 Track your hostel application and manage your accommodation
@@ -127,13 +122,14 @@ const StudentDashboard = () => {
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                Pending Fees
+                Select Room
               </CardTitle>
-              <CreditCard className="h-4 w-4 text-orange-600" />
+              <Grid2x2 className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹45,000</div>
-              <p className="text-xs text-red-600 mt-1">Due: March 15, 2024</p>
+              <Link to="/student/select-room">
+                <Button size="sm" className="mt-1 w-full">Open</Button>
+              </Link>
             </CardContent>
           </Card>
 
@@ -153,57 +149,55 @@ const StudentDashboard = () => {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Application Status Card */}
+          {/* Room Selection CTA */}
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Application Progress
+                <Grid2x2 className="w-5 h-5" />
+                Room Selection
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <CheckCircle className="w-5 h-5 text-blue-600" />
                     <div>
-                      <p className="font-medium">Personal Information</p>
-                      <p className="text-sm text-gray-600">Completed</p>
+                      <p className="font-medium">Profile Ready</p>
+                      <p className="text-sm text-gray-600">Account verified</p>
                     </div>
                   </div>
-                  <Badge className="bg-green-100 text-green-800">
-                    Complete
-                  </Badge>
-                </div>
-
-                <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-yellow-600" />
-                    <div>
-                      <p className="font-medium">Document Verification</p>
-                      <p className="text-sm text-gray-600">Under Review</p>
-                    </div>
-                  </div>
-                  <Badge className="bg-yellow-100 text-yellow-800">
-                    Pending
-                  </Badge>
+                  <Badge className="bg-green-100 text-green-800">Done</Badge>
                 </div>
 
                 <div className="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <AlertCircle className="w-5 h-5 text-gray-400" />
+                    <Clock className="w-5 h-5 text-gray-400" />
                     <div>
-                      <p className="font-medium">Room Allocation</p>
+                      <p className="font-medium">Batch Assignment</p>
                       <p className="text-sm text-gray-600">
-                        Waiting for approval
+                        Admin will assign you to a round based on CGPA
                       </p>
                     </div>
                   </div>
                   <Badge variant="secondary">Waiting</Badge>
                 </div>
 
-                <Link to="/student/apply">
-                  <Button className="w-full mt-4">Update Application</Button>
+                <div className="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Home className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="font-medium">Room Allocation</p>
+                      <p className="text-sm text-gray-600">
+                        Select preferences when your round is active
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="secondary">Pending</Badge>
+                </div>
+
+                <Link to="/student/select-room">
+                  <Button className="w-full mt-4">Go to Room Selection</Button>
                 </Link>
               </div>
             </CardContent>
@@ -216,10 +210,10 @@ const StudentDashboard = () => {
               <CardDescription>Common tasks and shortcuts</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Link to="/student/payments">
+              <Link to="/student/select-room">
                 <Button variant="outline" className="w-full justify-start">
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Pay Fees
+                  <Grid2x2 className="w-4 h-4 mr-2" />
+                  Select Room
                 </Button>
               </Link>
 
@@ -236,11 +230,6 @@ const StudentDashboard = () => {
                   View Room Details
                 </Button>
               </Link>
-
-              <Button variant="outline" className="w-full justify-start">
-                <Bell className="w-4 h-4 mr-2" />
-                Notifications (3)
-              </Button>
             </CardContent>
           </Card>
         </div>

@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { pool } from '../config/database.js';
+import pool from '../config/database.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { sendBatchActivationEmail } from '../services/emailService.js';
 

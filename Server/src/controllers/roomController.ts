@@ -4,6 +4,49 @@ import pool from '../config/database.js';
 import { ResponseHelper, logRequest, logSuccess, logError } from '../utils/response.js';
 
 /**
+ * GET /api/rooms/hostel/:hostelId/grid
+ */
+export const getRoomGrid = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const { hostelId } = req.params;
+
+  try {
+    const [hostels] = await pool.query<RowDataPacket[]>(
+      'SELECT * FROM Hostel WHERE hostel_id = ?',
+      [hostelId]
+    );
+    if (!hostels.length) return ResponseHelper.notFound(res, 'Hostel');
+
+    const [rooms] = await pool.query<RowDataPacket[]>(`
+      SELECT
+        r.*,
+        COUNT(CASE WHEN a.status = 'Active' THEN a.allotment_id END) AS current_occupancy
+      FROM Room r
+      LEFT JOIN Allotment a ON r.room_id = a.room_id AND a.status = 'Active'
+      WHERE r.hostel_id = ?
+      GROUP BY r.room_id
+      ORDER BY r.floor, r.room_number
+    `, [hostelId]);
+
+    const roomsWithSlots = rooms.map((r) => ({
+      ...r,
+      current_occupancy: Number(r.current_occupancy) || 0,
+      available_slots: r.capacity - (Number(r.current_occupancy) || 0),
+      is_full: (Number(r.current_occupancy) || 0) >= r.capacity,
+    }));
+
+    return ResponseHelper.success(res, 'Room grid fetched', {
+      hostel: hostels[0],
+      rooms: roomsWithSlots,
+    });
+  } catch (error) {
+    return ResponseHelper.error(res, 'Failed to fetch room grid', 500, (error as Error).message);
+  }
+};
+
+/**
  * GET /api/rooms
  */
 export const getAllRooms = async (
