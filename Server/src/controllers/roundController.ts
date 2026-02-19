@@ -1,7 +1,11 @@
 import { Response } from 'express';
 import pool from '../config/database.js';
 import { AuthRequest } from '../middleware/auth.js';
-import { sendBatchActivationEmail } from '../services/emailService.js';
+import {
+  sendBatchActivationEmail,
+  sendAllotmentConfirmationEmail,
+  sendUnresolvedAllotmentEmail,
+} from '../services/emailService.js';
 
 // GET /api/rounds  (admin)
 export const listRounds = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -193,6 +197,211 @@ export const getRoundStudents = async (req: AuthRequest, res: Response): Promise
     `, [round_id]) as any[];
 
     res.json({ success: true, message: 'Students fetched', data: students });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// POST /api/rounds/:id/process  (admin)
+export const processRound = async (req: AuthRequest, res: Response): Promise<void> => {
+  const round_id = parseInt(req.params.id);
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // Validate round
+    const [roundRows] = await conn.execute(
+      'SELECT * FROM AllotmentRound WHERE round_id = ?',
+      [round_id]
+    ) as any[];
+    const round = (roundRows as any[])[0];
+
+    if (!round) {
+      res.status(404).json({ success: false, message: 'Round not found' });
+      return;
+    }
+    if (round.status !== 'Active') {
+      res.status(400).json({ success: false, message: `Round is ${round.status}, must be Active to process` });
+      return;
+    }
+
+    // Load all Pending preferences with student CGPA
+    const [prefs] = await conn.execute(`
+      SELECT
+        rp.pref_id, rp.student_id,
+        rp.priority_1_room_id, rp.priority_2_room_id, rp.priority_3_room_id,
+        s.cgpa, s.name, s.email
+      FROM RoomPreference rp
+      JOIN Student s ON s.student_id = rp.student_id
+      WHERE rp.round_id = ? AND rp.status = 'Pending'
+    `, [round_id]) as any[];
+
+    const prefList = prefs as any[];
+
+    // Collect all room IDs mentioned in preferences
+    const roomIdSet = new Set<number>();
+    for (const p of prefList) {
+      if (p.priority_1_room_id) roomIdSet.add(p.priority_1_room_id);
+      if (p.priority_2_room_id) roomIdSet.add(p.priority_2_room_id);
+      if (p.priority_3_room_id) roomIdSet.add(p.priority_3_room_id);
+    }
+    const roomIds = [...roomIdSet];
+
+    // Load room capacities and current occupancy from previous rounds
+    const roomSlots = new Map<number, number>();
+    if (roomIds.length > 0) {
+      const ph = roomIds.map(() => '?').join(', ');
+      const [roomRows] = await conn.execute(`
+        SELECT
+          r.room_id, r.capacity,
+          COUNT(CASE WHEN a.status = 'Active' THEN a.allotment_id END) AS current_occupancy
+        FROM Room r
+        LEFT JOIN Allotment a ON a.room_id = r.room_id AND a.status = 'Active'
+        WHERE r.room_id IN (${ph})
+        GROUP BY r.room_id
+      `, roomIds) as any[];
+
+      for (const r of roomRows as any[]) {
+        roomSlots.set(r.room_id, Math.max(0, r.capacity - (Number(r.current_occupancy) || 0)));
+      }
+    }
+
+    // --- Allotment algorithm ---
+    // allotted: student_id → room_id
+    const allotted = new Map<number, number>();
+
+    for (const priorityKey of ['priority_1_room_id', 'priority_2_room_id', 'priority_3_room_id']) {
+      // Only process students not yet allotted
+      const unallotted = prefList.filter((p: any) => !allotted.has(p.student_id));
+
+      // Group unallotted by their room for this priority
+      const roomGroups = new Map<number, any[]>();
+      for (const p of unallotted) {
+        const roomId = p[priorityKey];
+        if (!roomId) continue;
+        if (!roomGroups.has(roomId)) roomGroups.set(roomId, []);
+        roomGroups.get(roomId)!.push(p);
+      }
+
+      // Fill each room: sort by CGPA desc, allot up to remaining slots
+      for (const [roomId, students] of roomGroups) {
+        const slots = roomSlots.get(roomId) ?? 0;
+        if (slots <= 0) continue;
+        students.sort((a: any, b: any) => (b.cgpa ?? 0) - (a.cgpa ?? 0));
+        const winners = students.slice(0, slots);
+        for (const s of winners) {
+          allotted.set(s.student_id, roomId);
+        }
+        roomSlots.set(roomId, slots - winners.length);
+      }
+    }
+
+    // Students still unallotted after all 3 priorities → Unresolved
+    const unresolvedPrefs = prefList.filter((p: any) => !allotted.has(p.student_id));
+
+    // --- Write to DB ---
+
+    // 1. Batch insert Allotment rows
+    if (allotted.size > 0) {
+      const entries = [...allotted.entries()];
+      const ph = entries.map(() => '(?, ?)').join(', ');
+      const vals = entries.flatMap(([sid, rid]) => [sid, rid]);
+      await conn.execute(`INSERT INTO Allotment (student_id, room_id) VALUES ${ph}`, vals);
+    }
+
+    // 2. Update RoomPreference for allotted students
+    for (const [studentId, roomId] of allotted.entries()) {
+      await conn.execute(
+        "UPDATE RoomPreference SET status = 'Allotted', allotted_room_id = ? WHERE student_id = ? AND round_id = ?",
+        [roomId, studentId, round_id]
+      );
+    }
+
+    // 3. Mark unresolved
+    if (unresolvedPrefs.length > 0) {
+      const ph = unresolvedPrefs.map(() => '?').join(', ');
+      const ids = unresolvedPrefs.map((p: any) => p.student_id);
+      await conn.execute(
+        `UPDATE RoomPreference SET status = 'Unresolved' WHERE round_id = ? AND student_id IN (${ph})`,
+        [round_id, ...ids]
+      );
+    }
+
+    // 4. Mark round Completed
+    await conn.execute(
+      "UPDATE AllotmentRound SET status = 'Completed', processed_at = NOW() WHERE round_id = ?",
+      [round_id]
+    );
+
+    // Gather email data before releasing connection
+    const allottedIds = [...allotted.keys()];
+    let allottedEmailData: any[] = [];
+    if (allottedIds.length > 0) {
+      const ph = allottedIds.map(() => '?').join(', ');
+      const [rows] = await conn.execute(`
+        SELECT s.name, s.email, r.room_number, r.floor, r.room_type, h.hostel_name
+        FROM Allotment a
+        JOIN Student s ON s.student_id = a.student_id
+        JOIN Room r ON r.room_id = a.room_id
+        JOIN Hostel h ON h.hostel_id = r.hostel_id
+        WHERE a.student_id IN (${ph}) AND a.status = 'Active'
+      `, allottedIds) as any[];
+      allottedEmailData = rows as any[];
+    }
+
+    await conn.commit();
+
+    // Send emails outside transaction
+    const emailJobs: Promise<any>[] = [
+      ...allottedEmailData.map((d: any) =>
+        sendAllotmentConfirmationEmail(d.email, d.name, d.hostel_name, d.room_number, d.floor, d.room_type)
+          .catch((err) => console.error(`Email failed for ${d.email}:`, err))
+      ),
+      ...unresolvedPrefs.map((p: any) =>
+        sendUnresolvedAllotmentEmail(p.email, p.name)
+          .catch((err: any) => console.error(`Email failed for ${p.email}:`, err))
+      ),
+    ];
+    await Promise.allSettled(emailJobs);
+
+    res.json({
+      success: true,
+      message: `Round processed. ${allotted.size} allotted, ${unresolvedPrefs.length} unresolved.`,
+      data: {
+        round_id,
+        allotted: allotted.size,
+        unresolved: unresolvedPrefs.length,
+        no_preference: 0, // students who didn't submit (not in prefList) get no action
+      },
+    });
+  } catch (err: any) {
+    await conn.rollback();
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    conn.release();
+  }
+};
+
+// GET /api/rounds/:id/results  (admin)
+export const getRoundResults = async (req: AuthRequest, res: Response): Promise<void> => {
+  const round_id = parseInt(req.params.id);
+  try {
+    const [results] = await pool.execute(`
+      SELECT
+        s.name, s.roll_no, s.cgpa, s.department,
+        rp.status AS pref_status,
+        r.room_number, r.floor, r.room_type,
+        h.hostel_name
+      FROM RoomPreference rp
+      JOIN Student s ON s.student_id = rp.student_id
+      LEFT JOIN Room r ON r.room_id = rp.allotted_room_id
+      LEFT JOIN Hostel h ON h.hostel_id = r.hostel_id
+      WHERE rp.round_id = ?
+      ORDER BY rp.status, s.cgpa DESC
+    `, [round_id]) as any[];
+
+    res.json({ success: true, message: 'Results fetched', data: results });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }

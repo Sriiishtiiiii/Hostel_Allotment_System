@@ -4,7 +4,9 @@ import {
   listRounds,
   createRound,
   activateRound,
+  processRound,
   getRoundStudents,
+  getRoundResults,
   getMyRoundStatus,
 } from '../controllers/roundController.js';
 
@@ -17,6 +19,8 @@ router.get('/my-status', requireAuth, getMyRoundStatus);
 router.get('/', requireAuth, requireAdmin, listRounds);
 router.post('/', requireAuth, requireAdmin, createRound);
 router.post('/:id/activate', requireAuth, requireAdmin, activateRound);
+router.post('/:id/process', requireAuth, requireAdmin, processRound);
 router.get('/:id/students', requireAuth, requireAdmin, getRoundStudents);
+router.get('/:id/results', requireAuth, requireAdmin, getRoundResults);
 
 export default router;

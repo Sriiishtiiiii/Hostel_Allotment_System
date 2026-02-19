@@ -87,6 +87,16 @@ export default function Rounds() {
     onError: (err: any) => toast.error(err.message || 'Failed to activate round'),
   });
 
+  const processMutation = useMutation({
+    mutationFn: (id: number) => api.processRound(id),
+    onSuccess: (data: any) => {
+      toast.success(data?.message || 'Round processed');
+      qc.invalidateQueries({ queryKey: ['rounds'] });
+      if (selectedRoundId) qc.invalidateQueries({ queryKey: ['round-students', selectedRoundId] });
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed to process round'),
+  });
+
   const handleCreate = () => {
     const batch_size = parseInt(form.batch_size);
     const academic_year = parseInt(form.academic_year);
@@ -161,7 +171,7 @@ export default function Rounds() {
                       <td className="px-4 py-2">{r.allotted_count ?? 0}</td>
                       <td className="px-4 py-2">{r.window_hours}h</td>
                       <td className="px-4 py-2">
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           {r.status === 'Upcoming' && (
                             <Button
                               size="sm"
@@ -170,6 +180,20 @@ export default function Rounds() {
                               disabled={activateMutation.isPending}
                             >
                               Activate
+                            </Button>
+                          )}
+                          {r.status === 'Active' && (
+                            <Button
+                              size="sm"
+                              className="bg-purple-600 hover:bg-purple-700 h-7 text-xs"
+                              onClick={() => {
+                                if (confirm(`Process Round #${r.round_number}? This will run the allotment algorithm and send emails.`)) {
+                                  processMutation.mutate(r.round_id);
+                                }
+                              }}
+                              disabled={processMutation.isPending}
+                            >
+                              {processMutation.isPending ? 'Processing...' : 'Process'}
                             </Button>
                           )}
                           <Button
