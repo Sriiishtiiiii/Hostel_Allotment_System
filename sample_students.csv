@@ -1,0 +1,11 @@
+roll_no,name,email,department,gender,academic_year,cgpa
+21CS001,Arjun Kumar,arjun@nith.ac.in,Computer Science,Male,3,9.2
+21CS002,Priya Sharma,priya@nith.ac.in,Computer Science,Female,3,8.8
+21CS003,Rahul Verma,rahul@nith.ac.in,Computer Science,Male,3,8.5
+21EC001,Sneha Patel,sneha@nith.ac.in,Electronics,Female,3,9.0
+21EC002,Vikram Singh,vikram@nith.ac.in,Electronics,Male,3,7.9
+21ME001,Ananya Rao,ananya@nith.ac.in,Mechanical,Female,3,8.3
+21ME002,Rohit Gupta,rohit@nith.ac.in,Mechanical,Male,3,7.6
+21CE001,Divya Nair,divya@nith.ac.in,Civil,Female,3,8.1
+21CE002,Karan Mehta,karan@nith.ac.in,Civil,Male,3,9.4
+21EE001,Pooja Joshi,pooja@nith.ac.in,Electrical,Female,3,8.7

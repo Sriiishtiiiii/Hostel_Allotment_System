@@ -67,16 +67,41 @@ export const signup = async (req: Request, res: Response): Promise<Response> => 
 
   try {
     const [existing] = await pool.query<StudentRow[]>(
-      'SELECT student_id FROM Student WHERE email = ? OR roll_no = ?',
+      'SELECT student_id, email, roll_no, password_hash FROM Student WHERE email = ? OR roll_no = ?',
       [email, roll_no]
     );
-    if (existing.length > 0) {
-      return ResponseHelper.badRequest(res, 'Email or roll number already registered');
-    }
 
     const password_hash = await bcrypt.hash(password, 12);
     const verification_token = crypto.randomBytes(32).toString('hex');
     const verification_expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    if (existing.length > 0) {
+      const match = existing[0];
+
+      // CSV-imported student (same email + roll_no, no password set yet) → allow password registration
+      if (match.email === email.toLowerCase() && match.roll_no === roll_no && !match.password_hash) {
+        await pool.query(
+          `UPDATE Student
+           SET name = ?, password_hash = ?, department = ?, academic_year = ?, gender = ?,
+               phone = ?, email_verified = FALSE,
+               verification_token = ?, verification_expires = ?
+           WHERE student_id = ?`,
+          [name, password_hash, department, academic_year, gender,
+           phone || null, verification_token, verification_expires, match.student_id]
+        );
+
+        sendVerificationEmail(email, name, verification_token).catch((err) =>
+          console.error('Failed to send verification email:', err)
+        );
+
+        return ResponseHelper.created(res, 'Account created. Please check your email to verify.', {
+          student_id: match.student_id,
+          email,
+        });
+      }
+
+      return ResponseHelper.badRequest(res, 'Email or roll number already registered');
+    }
 
     const [result] = await pool.query<ResultSetHeader>(
       `INSERT INTO Student
