@@ -5,7 +5,7 @@ import { AuthRequest } from '../middleware/auth.js';
 // POST /api/preferences
 export const submitPreferences = async (req: AuthRequest, res: Response): Promise<void> => {
   const student_id = req.user!.student_id;
-  const { round_id, priority_1, priority_2, priority_3 } = req.body;
+  const { round_id, priority_1, priority_2, priority_3, priority_4, priority_5 } = req.body;
 
   if (!round_id || !priority_1) {
     res.status(400).json({ success: false, message: 'round_id and priority_1 are required' });
@@ -48,7 +48,7 @@ export const submitPreferences = async (req: AuthRequest, res: Response): Promis
     ) as any[];
     const gender = (studentRows as any[])[0]?.gender;
 
-    const roomIds = [priority_1, priority_2, priority_3].filter(Boolean);
+    const roomIds = [priority_1, priority_2, priority_3, priority_4, priority_5].filter(Boolean);
     if (roomIds.length > 0) {
       const placeholders = roomIds.map(() => '?').join(', ');
       const [roomRows] = await pool.execute(`
@@ -74,15 +74,26 @@ export const submitPreferences = async (req: AuthRequest, res: Response): Promis
     // Upsert preference (student can update until deadline)
     await pool.execute(`
       INSERT INTO RoomPreference
-        (student_id, round_id, priority_1_room_id, priority_2_room_id, priority_3_room_id, status)
-      VALUES (?, ?, ?, ?, ?, 'Pending')
+        (student_id, round_id,
+         priority_1_room_id, priority_2_room_id, priority_3_room_id,
+         priority_4_room_id, priority_5_room_id, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending')
       ON DUPLICATE KEY UPDATE
         priority_1_room_id = VALUES(priority_1_room_id),
         priority_2_room_id = VALUES(priority_2_room_id),
         priority_3_room_id = VALUES(priority_3_room_id),
+        priority_4_room_id = VALUES(priority_4_room_id),
+        priority_5_room_id = VALUES(priority_5_room_id),
         submitted_at = CURRENT_TIMESTAMP,
         status = 'Pending'
-    `, [student_id, round_id, priority_1, priority_2 || null, priority_3 || null]);
+    `, [
+      student_id, round_id,
+      priority_1,
+      priority_2 || null,
+      priority_3 || null,
+      priority_4 || null,
+      priority_5 || null,
+    ]);
 
     res.json({ success: true, message: 'Preferences submitted successfully' });
   } catch (err: any) {
@@ -95,7 +106,6 @@ export const getMyPreferences = async (req: AuthRequest, res: Response): Promise
   const student_id = req.user!.student_id;
 
   try {
-    // Get preferences for the most recent round this student is in
     const [rows] = await pool.execute(`
       SELECT
         rp.*,
@@ -103,6 +113,8 @@ export const getMyPreferences = async (req: AuthRequest, res: Response): Promise
         r1.room_number AS p1_room_number, h1.hostel_name AS p1_hostel, r1.floor AS p1_floor,
         r2.room_number AS p2_room_number, h2.hostel_name AS p2_hostel, r2.floor AS p2_floor,
         r3.room_number AS p3_room_number, h3.hostel_name AS p3_hostel, r3.floor AS p3_floor,
+        r4.room_number AS p4_room_number, h4.hostel_name AS p4_hostel, r4.floor AS p4_floor,
+        r5.room_number AS p5_room_number, h5.hostel_name AS p5_hostel, r5.floor AS p5_floor,
         ra.room_number AS allotted_room_number, ha.hostel_name AS allotted_hostel
       FROM RoomPreference rp
       JOIN AllotmentRound ar ON ar.round_id = rp.round_id
@@ -112,6 +124,10 @@ export const getMyPreferences = async (req: AuthRequest, res: Response): Promise
       LEFT JOIN Hostel h2 ON h2.hostel_id = r2.hostel_id
       LEFT JOIN Room r3 ON r3.room_id = rp.priority_3_room_id
       LEFT JOIN Hostel h3 ON h3.hostel_id = r3.hostel_id
+      LEFT JOIN Room r4 ON r4.room_id = rp.priority_4_room_id
+      LEFT JOIN Hostel h4 ON h4.hostel_id = r4.hostel_id
+      LEFT JOIN Room r5 ON r5.room_id = rp.priority_5_room_id
+      LEFT JOIN Hostel h5 ON h5.hostel_id = r5.hostel_id
       LEFT JOIN Room ra ON ra.room_id = rp.allotted_room_id
       LEFT JOIN Hostel ha ON ha.hostel_id = ra.hostel_id
       WHERE rp.student_id = ?

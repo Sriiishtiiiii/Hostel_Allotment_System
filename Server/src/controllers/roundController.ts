@@ -30,7 +30,7 @@ export const listRounds = async (_req: AuthRequest, res: Response): Promise<void
 
 // POST /api/rounds  (admin)
 export const createRound = async (req: AuthRequest, res: Response): Promise<void> => {
-  const { batch_size = 20, academic_year, window_hours = 24 } = req.body;
+  const { batch_size = 5, academic_year, window_hours = 24 } = req.body;
 
   if (!academic_year) {
     res.status(400).json({ success: false, message: 'academic_year is required' });
@@ -231,6 +231,7 @@ export const processRound = async (req: AuthRequest, res: Response): Promise<voi
       SELECT
         rp.pref_id, rp.student_id,
         rp.priority_1_room_id, rp.priority_2_room_id, rp.priority_3_room_id,
+        rp.priority_4_room_id, rp.priority_5_room_id,
         s.cgpa, s.name, s.email
       FROM RoomPreference rp
       JOIN Student s ON s.student_id = rp.student_id
@@ -245,6 +246,8 @@ export const processRound = async (req: AuthRequest, res: Response): Promise<voi
       if (p.priority_1_room_id) roomIdSet.add(p.priority_1_room_id);
       if (p.priority_2_room_id) roomIdSet.add(p.priority_2_room_id);
       if (p.priority_3_room_id) roomIdSet.add(p.priority_3_room_id);
+      if (p.priority_4_room_id) roomIdSet.add(p.priority_4_room_id);
+      if (p.priority_5_room_id) roomIdSet.add(p.priority_5_room_id);
     }
     const roomIds = [...roomIdSet];
 
@@ -271,7 +274,7 @@ export const processRound = async (req: AuthRequest, res: Response): Promise<voi
     // allotted: student_id → room_id
     const allotted = new Map<number, number>();
 
-    for (const priorityKey of ['priority_1_room_id', 'priority_2_room_id', 'priority_3_room_id']) {
+    for (const priorityKey of ['priority_1_room_id', 'priority_2_room_id', 'priority_3_room_id', 'priority_4_room_id', 'priority_5_room_id']) {
       // Only process students not yet allotted
       const unallotted = prefList.filter((p: any) => !allotted.has(p.student_id));
 

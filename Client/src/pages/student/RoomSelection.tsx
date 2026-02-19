@@ -69,7 +69,7 @@ export default function RoomSelection() {
   const { user } = useAuth();
   const [selectedHostelId, setSelectedHostelId] = useState<number | null>(null);
   const [selectedFloor, setSelectedFloor] = useState(1);
-  const [priorities, setPriorities] = useState<(number | null)[]>([null, null, null]);
+  const [priorities, setPriorities] = useState<(number | null)[]>([null, null, null, null, null]);
 
   const { data: roundStatus, isLoading: loadingStatus } = useQuery<RoundStatus>({
     queryKey: ['my-round-status'],
@@ -115,6 +115,8 @@ export default function RoomSelection() {
         (existingPrefs as any)?.priority_1_room_id ?? null,
         (existingPrefs as any)?.priority_2_room_id ?? null,
         (existingPrefs as any)?.priority_3_room_id ?? null,
+        (existingPrefs as any)?.priority_4_room_id ?? null,
+        (existingPrefs as any)?.priority_5_room_id ?? null,
       ]);
     }
   }, [existingPrefs, roundStatus?.round]);
@@ -126,6 +128,8 @@ export default function RoomSelection() {
         priority_1: priorities[0]!,
         priority_2: priorities[1] ?? undefined,
         priority_3: priorities[2] ?? undefined,
+        priority_4: priorities[3] ?? undefined,
+        priority_5: priorities[4] ?? undefined,
       }),
     onSuccess: () => toast.success('Preferences submitted!'),
     onError: (err: any) => toast.error(err.message || 'Submit failed'),
@@ -145,13 +149,13 @@ export default function RoomSelection() {
       const next = [...priorities];
       next[existingIdx] = null;
       const nonNull = next.filter(Boolean);
-      while (nonNull.length < 3) nonNull.push(null);
+      while (nonNull.length < 5) nonNull.push(null);
       setPriorities(nonNull);
       return;
     }
     const emptyIdx = priorities.findIndex((p) => p === null);
     if (emptyIdx === -1) {
-      toast('All 3 priorities selected. Click a selected room to remove it.', { icon: 'ℹ️' });
+      toast('All 5 priorities selected. Click a selected room to remove it.', { icon: 'ℹ️' });
       return;
     }
     const next = [...priorities];
@@ -161,7 +165,7 @@ export default function RoomSelection() {
 
   const getPriorityLabel = (roomId: number): string | null => {
     const idx = priorities.indexOf(roomId);
-    return idx === -1 ? null : ['P1', 'P2', 'P3'][idx];
+    return idx === -1 ? null : ['P1', 'P2', 'P3', 'P4', 'P5'][idx];
   };
 
   const getRoomStyle = (room: RoomWithOccupancy) => {
@@ -180,7 +184,7 @@ export default function RoomSelection() {
         <div>
           <h1 className="text-2xl font-bold">Select Room Preferences</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Pick up to 3 rooms in priority order. Highest CGPA wins conflicts.
+            Pick up to 5 rooms in priority order. Highest CGPA wins conflicts.
           </p>
         </div>
 
@@ -317,7 +321,7 @@ export default function RoomSelection() {
                 <CardTitle className="text-sm">Your Priorities</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {[0, 1, 2].map((idx) => {
+                {[0, 1, 2, 3, 4].map((idx) => {
                   const roomId = priorities[idx];
                   const room = rooms.find((r) => r.room_id === roomId);
                   return (
@@ -333,7 +337,7 @@ export default function RoomSelection() {
                               const next = [...priorities];
                               next[idx] = null;
                               const nonNull = next.filter(Boolean);
-                              while (nonNull.length < 3) nonNull.push(null);
+                              while (nonNull.length < 5) nonNull.push(null);
                               setPriorities(nonNull);
                             }}
                             className="text-muted-foreground hover:text-red-500 ml-2 text-xs"

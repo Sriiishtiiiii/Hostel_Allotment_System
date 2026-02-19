@@ -133,7 +133,7 @@ class ApiClient {
   getMyRoundStatus() { return this.request('/rounds/my-status'); }
 
   /* PREFERENCES */
-  submitPreferences(data: { round_id: number; priority_1: number; priority_2?: number; priority_3?: number }) {
+  submitPreferences(data: { round_id: number; priority_1: number; priority_2?: number; priority_3?: number; priority_4?: number; priority_5?: number }) {
     return this.request('/preferences', { method: 'POST', body: JSON.stringify(data) });
   }
   getMyPreferences() { return this.request('/preferences/me'); }

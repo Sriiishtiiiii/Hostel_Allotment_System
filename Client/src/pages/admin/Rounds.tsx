@@ -52,7 +52,7 @@ interface RoundStudent {
 export default function Rounds() {
   const qc = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ batch_size: '20', academic_year: '', window_hours: '24' });
+  const [form, setForm] = useState({ batch_size: '5', academic_year: '', window_hours: '24' });
   const [selectedRoundId, setSelectedRoundId] = useState<number | null>(null);
 
   const { data: rounds = [], isLoading } = useQuery<Round[]>({
@@ -72,7 +72,7 @@ export default function Rounds() {
       toast.success(data?.message || 'Round created');
       qc.invalidateQueries({ queryKey: ['rounds'] });
       setCreateOpen(false);
-      setForm({ batch_size: '20', academic_year: '', window_hours: '24' });
+      setForm({ batch_size: '5', academic_year: '', window_hours: '24' });
     },
     onError: (err: any) => toast.error(err.message || 'Failed to create round'),
   });

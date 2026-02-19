@@ -90,7 +90,7 @@ CREATE TABLE AllotmentRound (
     round_id      INT AUTO_INCREMENT PRIMARY KEY,
     round_number  INT NOT NULL,
     academic_year INT NOT NULL,
-    batch_size    INT NOT NULL DEFAULT 20,
+    batch_size    INT NOT NULL DEFAULT 5,
     status        ENUM('Upcoming', 'Active', 'Completed') DEFAULT 'Upcoming',
     window_hours  INT DEFAULT 24,
     activated_at  DATETIME NULL,
@@ -112,7 +112,7 @@ CREATE TABLE RoundStudent (
 );
 
 -- ==========================================
--- 7. RoomPreference  (student's 3 priorities)
+-- 7. RoomPreference  (student's 5 priorities)
 -- ==========================================
 CREATE TABLE RoomPreference (
     pref_id            INT AUTO_INCREMENT PRIMARY KEY,
@@ -121,6 +121,8 @@ CREATE TABLE RoomPreference (
     priority_1_room_id INT NOT NULL,
     priority_2_room_id INT NULL,
     priority_3_room_id INT NULL,
+    priority_4_room_id INT NULL,
+    priority_5_room_id INT NULL,
     submitted_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
     status             ENUM('Pending', 'Allotted', 'Unresolved') DEFAULT 'Pending',
     allotted_room_id   INT NULL,
@@ -130,6 +132,8 @@ CREATE TABLE RoomPreference (
     FOREIGN KEY (priority_1_room_id) REFERENCES Room(room_id),
     FOREIGN KEY (priority_2_room_id) REFERENCES Room(room_id),
     FOREIGN KEY (priority_3_room_id) REFERENCES Room(room_id),
+    FOREIGN KEY (priority_4_room_id) REFERENCES Room(room_id),
+    FOREIGN KEY (priority_5_room_id) REFERENCES Room(room_id),
     FOREIGN KEY (allotted_room_id)   REFERENCES Room(room_id)
 );
 
