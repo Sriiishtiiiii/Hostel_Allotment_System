@@ -129,6 +129,9 @@ class ApiClient {
   processRound(id: number) {
     return this.request(`/rounds/${id}/process`, { method: 'POST' });
   }
+  processAndAdvance(id: number) {
+    return this.request(`/rounds/${id}/process-and-advance`, { method: 'POST' });
+  }
   getRoundStudents(id: number) { return this.request(`/rounds/${id}/students`); }
   getMyRoundStatus() { return this.request('/rounds/my-status'); }
 

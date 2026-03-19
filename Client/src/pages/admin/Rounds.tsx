@@ -97,6 +97,16 @@ export default function Rounds() {
     onError: (err: any) => toast.error(err.message || 'Failed to process round'),
   });
 
+  const advanceMutation = useMutation({
+    mutationFn: (id: number) => api.processAndAdvance(id),
+    onSuccess: (data: any) => {
+      toast.success(data?.message || 'Round processed & next batch started');
+      qc.invalidateQueries({ queryKey: ['rounds'] });
+      setSelectedRoundId(null);
+    },
+    onError: (err: any) => toast.error(err.message || 'Failed'),
+  });
+
   const handleCreate = () => {
     const batch_size = parseInt(form.batch_size);
     const academic_year = parseInt(form.academic_year);
@@ -183,18 +193,32 @@ export default function Rounds() {
                             </Button>
                           )}
                           {r.status === 'Active' && (
-                            <Button
-                              size="sm"
-                              className="bg-purple-600 hover:bg-purple-700 h-7 text-xs"
-                              onClick={() => {
-                                if (confirm(`Process Round #${r.round_number}? This will run the allotment algorithm and send emails.`)) {
-                                  processMutation.mutate(r.round_id);
-                                }
-                              }}
-                              disabled={processMutation.isPending}
-                            >
-                              {processMutation.isPending ? 'Processing...' : 'Process'}
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                className="bg-purple-600 hover:bg-purple-700 h-7 text-xs"
+                                onClick={() => {
+                                  if (confirm(`Process Round #${r.round_number}? Runs allotment algorithm only.`)) {
+                                    processMutation.mutate(r.round_id);
+                                  }
+                                }}
+                                disabled={processMutation.isPending || advanceMutation.isPending}
+                              >
+                                {processMutation.isPending ? 'Processing...' : 'Process'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="bg-orange-600 hover:bg-orange-700 h-7 text-xs"
+                                onClick={() => {
+                                  if (confirm(`Process Round #${r.round_number} and auto-start the next batch?`)) {
+                                    advanceMutation.mutate(r.round_id);
+                                  }
+                                }}
+                                disabled={processMutation.isPending || advanceMutation.isPending}
+                              >
+                                {advanceMutation.isPending ? 'Advancing...' : 'Process & Next Batch'}
+                              </Button>
+                            </>
                           )}
                           <Button
                             size="sm"

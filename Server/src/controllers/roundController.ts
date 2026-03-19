@@ -30,9 +30,11 @@ export const listRounds = async (_req: AuthRequest, res: Response): Promise<void
 
 // POST /api/rounds  (admin)
 export const createRound = async (req: AuthRequest, res: Response): Promise<void> => {
-  const { batch_size = 5, academic_year, window_hours = 24 } = req.body;
+  const batch_size = parseInt(req.body.batch_size) || 5;
+  const academic_year = parseInt(req.body.academic_year);
+  const window_hours = parseInt(req.body.window_hours) || 24;
 
-  if (!academic_year) {
+  if (!academic_year || isNaN(academic_year)) {
     res.status(400).json({ success: false, message: 'academic_year is required' });
     return;
   }
@@ -46,9 +48,12 @@ export const createRound = async (req: AuthRequest, res: Response): Promise<void
       'SELECT COUNT(*) AS cnt FROM AllotmentRound WHERE academic_year = ?',
       [academic_year]
     ) as any[];
-    const round_number = (existing[0].cnt as number) + 1;
+    const round_number = Number(existing[0].cnt) + 1;
+
+    console.log('[createRound] values:', { round_number, academic_year, batch_size, window_hours, types: [typeof round_number, typeof academic_year, typeof batch_size, typeof window_hours] });
 
     // Create the round record
+    // NOTE: all values explicitly cast to Number to avoid mysql2 BigInt issues
     const [result] = await conn.execute(
       'INSERT INTO AllotmentRound (round_number, academic_year, batch_size, window_hours) VALUES (?, ?, ?, ?)',
       [round_number, academic_year, batch_size, window_hours]
@@ -75,8 +80,8 @@ export const createRound = async (req: AuthRequest, res: Response): Promise<void
             AND ar2.status IN ('Upcoming', 'Active')
         )
       ORDER BY s.cgpa DESC
-      LIMIT ?
-    `, [batch_size]) as any[];
+      LIMIT ${batch_size}
+    `) as any[];
 
     const studentList = students as any[];
 
@@ -98,6 +103,7 @@ export const createRound = async (req: AuthRequest, res: Response): Promise<void
     });
   } catch (err: any) {
     await conn.rollback();
+    console.error('[createRound] ERROR:', err.message, err.code, err.sqlMessage);
     res.status(500).json({ success: false, message: err.message });
   } finally {
     conn.release();
@@ -375,11 +381,198 @@ export const processRound = async (req: AuthRequest, res: Response): Promise<voi
         round_id,
         allotted: allotted.size,
         unresolved: unresolvedPrefs.length,
-        no_preference: 0, // students who didn't submit (not in prefList) get no action
+        no_preference: 0,
       },
     });
   } catch (err: any) {
     await conn.rollback();
+    res.status(500).json({ success: false, message: err.message });
+  } finally {
+    conn.release();
+  }
+};
+
+// POST /api/rounds/:id/process-and-advance  (admin)
+// Processes the current round then automatically creates + activates the next batch
+export const processAndAdvance = async (req: AuthRequest, res: Response): Promise<void> => {
+  const round_id = parseInt(req.params.id);
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // ── 1. Load and validate the round ──────────────────────────────────────
+    const [roundRows] = await conn.execute(
+      'SELECT * FROM AllotmentRound WHERE round_id = ?', [round_id]
+    ) as any[];
+    const round = (roundRows as any[])[0];
+
+    if (!round) { res.status(404).json({ success: false, message: 'Round not found' }); return; }
+    if (round.status !== 'Active') {
+      res.status(400).json({ success: false, message: `Round is ${round.status}, must be Active` });
+      return;
+    }
+
+    // ── 2. Run the same allotment algorithm as processRound ──────────────────
+    const [prefs] = await conn.execute(`
+      SELECT rp.pref_id, rp.student_id,
+        rp.priority_1_room_id, rp.priority_2_room_id, rp.priority_3_room_id,
+        rp.priority_4_room_id, rp.priority_5_room_id,
+        s.cgpa, s.name, s.email
+      FROM RoomPreference rp
+      JOIN Student s ON s.student_id = rp.student_id
+      WHERE rp.round_id = ? AND rp.status = 'Pending'
+    `, [round_id]) as any[];
+    const prefList = prefs as any[];
+
+    const roomIdSet = new Set<number>();
+    for (const p of prefList) {
+      for (const key of ['priority_1_room_id','priority_2_room_id','priority_3_room_id','priority_4_room_id','priority_5_room_id']) {
+        if (p[key]) roomIdSet.add(p[key]);
+      }
+    }
+    const roomIds = [...roomIdSet];
+    const roomSlots = new Map<number, number>();
+    if (roomIds.length > 0) {
+      const ph = roomIds.map(() => '?').join(', ');
+      const [roomRows] = await conn.execute(`
+        SELECT r.room_id, r.capacity,
+          COUNT(CASE WHEN a.status = 'Active' THEN a.allotment_id END) AS current_occupancy
+        FROM Room r
+        LEFT JOIN Allotment a ON a.room_id = r.room_id AND a.status = 'Active'
+        WHERE r.room_id IN (${ph})
+        GROUP BY r.room_id
+      `, roomIds) as any[];
+      for (const r of roomRows as any[]) {
+        roomSlots.set(r.room_id, Math.max(0, r.capacity - (Number(r.current_occupancy) || 0)));
+      }
+    }
+
+    const allotted = new Map<number, number>();
+    for (const priorityKey of ['priority_1_room_id','priority_2_room_id','priority_3_room_id','priority_4_room_id','priority_5_room_id']) {
+      const unallotted = prefList.filter((p: any) => !allotted.has(p.student_id));
+      const roomGroups = new Map<number, any[]>();
+      for (const p of unallotted) {
+        const roomId = p[priorityKey];
+        if (!roomId) continue;
+        if (!roomGroups.has(roomId)) roomGroups.set(roomId, []);
+        roomGroups.get(roomId)!.push(p);
+      }
+      for (const [roomId, students] of roomGroups) {
+        const slots = roomSlots.get(roomId) ?? 0;
+        if (slots <= 0) continue;
+        students.sort((a: any, b: any) => (b.cgpa ?? 0) - (a.cgpa ?? 0));
+        const winners = students.slice(0, slots);
+        for (const s of winners) allotted.set(s.student_id, roomId);
+        roomSlots.set(roomId, slots - winners.length);
+      }
+    }
+    const unresolvedPrefs = prefList.filter((p: any) => !allotted.has(p.student_id));
+
+    // Write allotments
+    if (allotted.size > 0) {
+      const entries = [...allotted.entries()];
+      const ph = entries.map(() => '(?, ?)').join(', ');
+      await conn.execute(`INSERT INTO Allotment (student_id, room_id) VALUES ${ph}`, entries.flatMap(([sid, rid]) => [sid, rid]));
+      for (const [studentId, roomId] of allotted.entries()) {
+        await conn.execute(
+          "UPDATE RoomPreference SET status = 'Allotted', allotted_room_id = ? WHERE student_id = ? AND round_id = ?",
+          [roomId, studentId, round_id]
+        );
+      }
+    }
+    if (unresolvedPrefs.length > 0) {
+      const ph = unresolvedPrefs.map(() => '?').join(', ');
+      await conn.execute(
+        `UPDATE RoomPreference SET status = 'Unresolved' WHERE round_id = ? AND student_id IN (${ph})`,
+        [round_id, ...unresolvedPrefs.map((p: any) => p.student_id)]
+      );
+    }
+    await conn.execute(
+      "UPDATE AllotmentRound SET status = 'Completed', processed_at = NOW() WHERE round_id = ?",
+      [round_id]
+    );
+
+    // ── 3. Create + activate next batch ─────────────────────────────────────
+    const batch_size = Number(round.batch_size);
+    const academic_year = Number(round.academic_year);
+
+    const [cntRows] = await conn.execute(
+      'SELECT COUNT(*) AS cnt FROM AllotmentRound WHERE academic_year = ?', [academic_year]
+    ) as any[];
+    const next_round_number = Number(cntRows[0].cnt) + 1;
+
+    const [nextStudents] = await conn.execute(`
+      SELECT s.student_id FROM Student s
+      WHERE s.is_admin = FALSE
+        AND s.email_verified = TRUE
+        AND s.cgpa IS NOT NULL
+        AND NOT EXISTS (SELECT 1 FROM Allotment a WHERE a.student_id = s.student_id AND a.status = 'Active')
+        AND NOT EXISTS (
+          SELECT 1 FROM RoundStudent rs2
+          JOIN AllotmentRound ar2 ON ar2.round_id = rs2.round_id
+          WHERE rs2.student_id = s.student_id AND ar2.status IN ('Upcoming', 'Active')
+        )
+      ORDER BY s.cgpa DESC
+      LIMIT ${batch_size}
+    `) as any[];
+    const nextList = nextStudents as any[];
+
+    let next_round_id: number | null = null;
+    if (nextList.length > 0) {
+      const [ins] = await conn.execute(
+        'INSERT INTO AllotmentRound (round_number, academic_year, batch_size, window_hours, status, activated_at) VALUES (?, ?, ?, ?, ?, NOW())',
+        [next_round_number, academic_year, batch_size, round.window_hours, 'Active']
+      ) as any[];
+      next_round_id = ins.insertId as number;
+
+      const ph = nextList.map(() => '(?, ?)').join(', ');
+      await conn.execute(
+        `INSERT INTO RoundStudent (round_id, student_id) VALUES ${ph}`,
+        nextList.flatMap((s: any) => [next_round_id, s.student_id])
+      );
+      await conn.execute('UPDATE RoundStudent SET notified = TRUE WHERE round_id = ?', [next_round_id]);
+    }
+
+    await conn.commit();
+
+    // ── 4. Emails (outside transaction) ─────────────────────────────────────
+    const allottedIds = [...allotted.keys()];
+    if (allottedIds.length > 0) {
+      const ph = allottedIds.map(() => '?').join(', ');
+      const [emailRows] = await pool.execute(`
+        SELECT s.name, s.email, r.room_number, r.floor, r.room_type, h.hostel_name
+        FROM Allotment a JOIN Student s ON s.student_id = a.student_id
+        JOIN Room r ON r.room_id = a.room_id JOIN Hostel h ON h.hostel_id = r.hostel_id
+        WHERE a.student_id IN (${ph}) AND a.status = 'Active'
+      `, allottedIds) as any[];
+      await Promise.allSettled((emailRows as any[]).map((d: any) =>
+        sendAllotmentConfirmationEmail(d.email, d.name, d.hostel_name, d.room_number, d.floor, d.room_type)
+          .catch(() => {})
+      ));
+    }
+    if (next_round_id && nextList.length > 0) {
+      const deadline = new Date(Date.now() + round.window_hours * 3600 * 1000).toISOString();
+      const [nStudents] = await pool.execute(
+        `SELECT s.name, s.email FROM RoundStudent rs JOIN Student s ON s.student_id = rs.student_id WHERE rs.round_id = ?`,
+        [next_round_id]
+      ) as any[];
+      await Promise.allSettled((nStudents as any[]).map((s: any) =>
+        sendBatchActivationEmail(s.email, s.name, next_round_number, deadline).catch(() => {})
+      ));
+    }
+
+    res.json({
+      success: true,
+      message: `Round ${round.round_number} processed. ${allotted.size} allotted. ${nextList.length > 0 ? `Round ${next_round_number} auto-started with ${nextList.length} students.` : 'No more eligible students — all done!'}`,
+      data: {
+        processed: { round_id, allotted: allotted.size, unresolved: unresolvedPrefs.length },
+        next_round: next_round_id ? { round_id: next_round_id, round_number: next_round_number, students: nextList.length } : null,
+      },
+    });
+  } catch (err: any) {
+    await conn.rollback();
+    console.error('[processAndAdvance] ERROR:', err.message);
     res.status(500).json({ success: false, message: err.message });
   } finally {
     conn.release();

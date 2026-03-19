@@ -5,6 +5,7 @@ import {
   createRound,
   activateRound,
   processRound,
+  processAndAdvance,
   getRoundStudents,
   getRoundResults,
   getMyRoundStatus,
@@ -20,6 +21,7 @@ router.get('/', requireAuth, requireAdmin, listRounds);
 router.post('/', requireAuth, requireAdmin, createRound);
 router.post('/:id/activate', requireAuth, requireAdmin, activateRound);
 router.post('/:id/process', requireAuth, requireAdmin, processRound);
+router.post('/:id/process-and-advance', requireAuth, requireAdmin, processAndAdvance);
 router.get('/:id/students', requireAuth, requireAdmin, getRoundStudents);
 router.get('/:id/results', requireAuth, requireAdmin, getRoundResults);
 

@@ -8,6 +8,7 @@ import {
   Upload,
   Layers,
   Grid2x2,
+  Play,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const adminNavItems: NavItem[] = [
   { label: "Upload CSV", path: "/admin/csv", icon: Upload },
   { label: "Rounds", path: "/admin/rounds", icon: Layers },
   { label: "Complaints", path: "/admin/complaints", icon: MessageSquare },
+  { label: "Simulation", path: "/admin/simulation", icon: Play },
 ];
 
 export const Sidebar = () => {
