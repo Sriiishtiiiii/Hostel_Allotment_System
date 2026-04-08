@@ -1,102 +1,217 @@
-# Hostel Allotment System  
-### Database Management Systems Project
+
+# Hostel Allotment System 
 
 ---
 
-## 1. Introduction
+## 1. Overview
 
-The **Hostel Allotment System** is a database-oriented project developed to model and manage the complete hostel allocation process in an educational institution. The system captures real-world constraints and operational workflows such as student applications, administrative approvals, room allotments, fee management, payment tracking, complaint handling, and allotment history maintenance.
+The **Hostel Allotment System** is a database-driven application designed to simulate a **real-world hostel allocation process using CGPA-based priority rounds**.
 
-The project focuses on **conceptual database design**, **entity–relationship modeling**, and **relational schema normalization** in accordance with standard DBMS principles.
-
----
-
-## 2. Objectives
-
-- To design a **well-structured relational database** for hostel management
-- To apply **Entity–Relationship (ER) modeling** techniques
-- To eliminate data redundancy through **normalization up to Third Normal Form (3NF)**
-- To represent real-world constraints using keys and relationships
-- To provide a scalable and extensible database schema
+The system introduces a **controlled, round-based allocation mechanism**, where students are grouped by merit and given a **fixed 5-minute window** to select room preferences. Allocation is performed fairly based on priority and availability.
 
 ---
 
-## 3. Scope of the System
+## 2. Core Concept
 
-The system covers the following functional areas:
+* Students are ranked based on **CGPA**
+* Top students are grouped into **batches (default: 5 students per round)**
+* Each batch gets a **5-minute preference submission window**
+* Students submit **up to 5 room preferences**
+* Rooms are allotted based on:
 
-- Student information management
-- Hostel and room administration
-- Application-based hostel allotment
-- Administrative approval and control
-- Fee structure and payment tracking
-- Complaint and maintenance handling
-- Allotment history preservation
-
----
-
-## 4. Entity Description
-
-### 4.1 Student
-Stores information related to students such as roll number, department, academic year, gender, and contact details.
-
-### 4.2 Hostel
-Represents hostels within the institution, including hostel type and total capacity.
-
-### 4.3 Room
-Maintains room-level information such as room number, room type, and capacity, associated with a specific hostel.
-
-### 4.4 Application
-Records hostel allotment requests submitted by students prior to approval.
-
-### 4.5 Admin
-Represents hostel authorities responsible for approving applications and managing allotments.
-
-### 4.6 Allotment
-Acts as a relationship entity between Student and Room, storing both active and past allotment records.
-
-### 4.7 Fee
-Defines hostel fee structure based on academic year.
-
-### 4.8 Payment
-Tracks payments made by students towards hostel fees.
-
-### 4.9 Complaint
-Stores complaints related to hostel rooms or facilities raised by students.
+  * Priority order (P1 → P5)
+  * Room availability
 
 ---
 
-## 5. Relationships Overview
+## 3. Key Features
 
-- One **Hostel** can contain multiple **Rooms**
-- One **Student** can submit multiple **Applications**
-- One **Admin** can approve multiple **Allotments**
-- One **Student** can have multiple **Payments** and **Complaints**
-- One **Room** can have multiple **Allotments** over time
-- One **Fee** can be associated with multiple **Payments**
-
----
-
-## 6. Constraints and Assumptions
-
-- A student can have **only one active allotment** at a time
-- Room occupancy cannot exceed room capacity
-- Student gender must match hostel type
-- Historical allotment data is preserved using vacated date and status attributes
-- All relationships are enforced using primary and foreign key constraints
+* Merit-based (CGPA) prioritization
+* Round-based controlled allocation
+* Time-constrained preference submission
+* Multi-level room preference system
+* Conflict-free allocation mechanism
+* Historical allotment tracking
+* Complaint management system
+* Authentication-ready schema (JWT-based)
 
 ---
 
-## 7. ER Diagram
+## 4. Database Schema Overview
 
-The Entity–Relationship diagram visually represents all entities, attributes, primary keys, foreign keys, and relationships used in the system.
+### Core Tables
 
-*(ER diagram designed using MySQL Workbench)*
+* **Student** – includes CGPA, authentication, and role control
+* **Hostel** – hostel details and type
+* **Room** – linked to hostel with capacity constraints
+* **Allotment** – stores active and past allocations
+* **AllotmentRound** – manages batch-based rounds
+* **RoundStudent** – maps students to rounds
+* **RoomPreference** – stores top 5 choices per student
+* **Complaint** – tracks issues raised by students
+
 
 ---
 
-## 8. Authors
-**Shubham Anand (23BCS109)** <br>
-**Soham Juneja (23BCS110)** <br>
-**Srishti Chamoli (23BCS111)** <br>
+## 5. System Workflow
+
+```mermaid
+flowchart TD
+    A[Start] --> B[Fetch Students]
+    B --> C[Sort by CGPA Desc]
+    C --> D[Create Batches of 5]
+    D --> E[Create Allotment Rounds]
+
+    E --> F[Admin Activates Round]
+    F --> G[Notify Students]
+    G --> H[Students Submit Preferences - 5 min window]
+
+    H --> I[Admin Ends Round]
+    I --> J[Run Allocation Algorithm]
+
+    J --> K[Store Allotments]
+    K --> L[Mark Round Completed]
+
+    L --> M{More Rounds?}
+    M -->|Yes| F
+    M -->|No| N[End]
+```
+
+---
+
+## 6. Detailed Allocation Logic
+
+```mermaid
+flowchart TD
+    A[Start Allocation] --> B[Pick Student]
+    B --> C[Check Priority 1]
+
+    C --> D{Room Available?}
+    D -->|Yes| E[Assign Room]
+
+    D -->|No| F[Check Priority 2]
+    F --> G{Available?}
+    G -->|Yes| E
+
+    G -->|No| H[Check Priority 3]
+    H --> I{Available?}
+    I -->|Yes| E
+
+    I -->|No| J[Check Priority 4]
+    J --> K{Available?}
+    K -->|Yes| E
+
+    K -->|No| L[Check Priority 5]
+    L --> M{Available?}
+    M -->|Yes| E
+
+    M -->|No| N[Mark Unresolved]
+
+    E --> O[Create Allotment Record]
+    O --> P[End for Student]
+    N --> P
+```
+
+---
+
+## 7. Admin Role (System Controller)
+
+The **Admin** is the **central authority controlling the entire system workflow**.
+
+### Responsibilities
+
+* Creates and manages **Allotment Rounds**
+* Starts and ends each round manually
+* Controls the **5-minute submission window**
+* Monitors student participation
+* Triggers allocation process
+* Handles unresolved cases and system issues
+
+---
+
+## 8. Round Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Upcoming
+    Upcoming --> Active : Admin activates
+    Active --> Completed : Admin ends + allocation done
+    Completed --> [*]
+```
+
+---
+
+## 9. ER Diagram (Simplified)
+
+```mermaid
+erDiagram
+    ADMIN ||--o{ ALLOTMENT_ROUND : controls
+
+    STUDENT ||--o{ ROUND_STUDENT : participates
+    ALLOTMENT_ROUND ||--o{ ROUND_STUDENT : includes
+
+    STUDENT ||--o{ ROOM_PREFERENCE : submits
+    ALLOTMENT_ROUND ||--o{ ROOM_PREFERENCE : belongs_to
+
+    HOSTEL ||--o{ ROOM : has
+
+    ROOM ||--o{ ALLOTMENT : assigned
+    STUDENT ||--o{ ALLOTMENT : gets
+
+    STUDENT ||--o{ COMPLAINT : raises
+    COMPLAINT }o--|| ROOM : about
+```
+
+---
+
+## 10. Constraints & Rules
+
+* A student can have **only one active allotment**
+* Room capacity must not be exceeded
+* Preferences can be submitted **only once per round**
+* Allocation strictly follows **P1 → P5 priority order**
+* Hostel type must match student gender
+* Admin must **start and end each round manually**
+
+---
+
+## 11. Design Decisions
+
+### Round-Based Allocation
+
+* Prevents race conditions
+* Ensures fairness
+* Mimics real counselling systems
+
+### Multi-Preference System
+
+* Reduces allocation failure
+* Improves efficiency
+
+### Admin-Controlled Execution
+
+* Ensures strict timing
+* Prevents misuse
+* Provides manual override
+
+---
+
+## 12. Technologies & Concepts Used
+
+* Relational Database Design
+* Normalization (up to 3NF)
+* Primary & Foreign Keys
+* Unique Constraints
+* Indexing
+* Transaction-safe logic (conceptual)
+
+---
+
+## 14. Authors
+
+**Shubham Anand (23BCS109)**
+**Soham Juneja (23BCS110)**
+**Srishti Chamoli (23BCS111)**
 **Subhash Bharti (23BCS112)**
+
+
