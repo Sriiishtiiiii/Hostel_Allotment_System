@@ -53,15 +53,15 @@ INSERT INTO Room (hostel_id, room_number, floor, room_type, capacity) VALUES
 INSERT INTO Student (name, roll_no, email, department, academic_year, gender, cgpa,
                      is_admin, password_hash, email_verified) VALUES
 ('Admin User',    'ADMIN001', 'admin@nith.ac.in',  'Administration',  2024, 'Male',   NULL,
- TRUE,  '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4oZ6Wf7G.K', TRUE),
+ TRUE,  '$2a$12$NDh9zSAfzpERbIx9CDAHle5bt7cDRN8ziVaEsriD8L.3h7FIxucLC', TRUE),
 ('Arjun Kumar',   '21CS001',  'arjun@nith.ac.in',  'Computer Science', 2021, 'Male',   8.90,
- FALSE, '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4oZ6Wf7G.K', TRUE),
+ FALSE, '$2a$12$NDh9zSAfzpERbIx9CDAHle5bt7cDRN8ziVaEsriD8L.3h7FIxucLC', TRUE),
 ('Rahul Singh',   '21ME003',  'rahul@nith.ac.in',  'Mechanical',       2021, 'Male',   7.80,
- FALSE, '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4oZ6Wf7G.K', TRUE),
+ FALSE, '$2a$12$NDh9zSAfzpERbIx9CDAHle5bt7cDRN8ziVaEsriD8L.3h7FIxucLC', TRUE),
 ('Priya Sharma',  '21CS002',  'priya@nith.ac.in',  'Computer Science', 2021, 'Female', 9.20,
- FALSE, '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4oZ6Wf7G.K', TRUE),
+ FALSE, '$2a$12$NDh9zSAfzpERbIx9CDAHle5bt7cDRN8ziVaEsriD8L.3h7FIxucLC', TRUE),
 ('Sneha Patel',   '21EC004',  'sneha@nith.ac.in',  'Electronics',      2021, 'Female', 8.50,
- FALSE, '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4oZ6Wf7G.K', TRUE),
+ FALSE, '$2a$12$NDh9zSAfzpERbIx9CDAHle5bt7cDRN8ziVaEsriD8L.3h7FIxucLC', TRUE),
 ('Vikram Thakur', '21CE005',  'vikram@nith.ac.in', 'Civil',            2021, 'Male',   8.10,
- FALSE, '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4oZ6Wf7G.K', TRUE);
+ FALSE, '$2a$12$NDh9zSAfzpERbIx9CDAHle5bt7cDRN8ziVaEsriD8L.3h7FIxucLC', TRUE);
 -- All sample passwords: Password@123
